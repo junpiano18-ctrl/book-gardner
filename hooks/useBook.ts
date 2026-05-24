@@ -50,7 +50,7 @@ export function useBook(userId: string | undefined) {
     return updated
   }
 
-  async function search(query: string) {
+  async function searchBooks(query: string) {
     setSearching(true)
     setError(null)
     try {
@@ -78,7 +78,7 @@ export function useBook(userId: string | undefined) {
     changeStatus,
     searchResults,
     searching,
-    search,
+    searchBooks,
     clearSearch,
   }
 }

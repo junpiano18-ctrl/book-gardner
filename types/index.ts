@@ -55,6 +55,8 @@ export interface KdcPlant {
   family: string
 }
 
+export type PlantWithBook = Plant & { book: Book }
+
 export interface KakaoBook {
   title: string
   contents: string
