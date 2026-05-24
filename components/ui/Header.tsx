@@ -1,5 +1,9 @@
+'use client'
+
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
   { key: 'garden', label: '내 정원', href: '/' },
@@ -41,8 +45,58 @@ export function Header({ activeKey, actions }: HeaderProps) {
           </nav>
         </div>
 
-        {actions}
+        <div className="flex items-center gap-3">
+          {actions}
+          <UserMenu />
+        </div>
       </div>
     </header>
+  )
+}
+
+function UserMenu() {
+  const router = useRouter()
+  const { user, loading, signOut } = useAuth()
+  const [signingOut, setSigningOut] = useState(false)
+
+  if (loading) {
+    return <div className="h-8 w-20 animate-pulse rounded-full bg-stone-200/80" />
+  }
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="rounded-full bg-stone-800 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-stone-900"
+      >
+        로그인
+      </Link>
+    )
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    try {
+      await signOut()
+      router.replace('/login')
+    } catch {
+      setSigningOut(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden text-sm text-stone-600 sm:inline">
+        🌿 <span className="font-medium text-stone-800">{user.nickname}</span>
+      </span>
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={signingOut}
+        className="rounded-full border border-stone-300 bg-white/70 px-3 py-1.5 text-sm text-stone-700 transition hover:bg-stone-100 disabled:cursor-wait disabled:opacity-60"
+      >
+        {signingOut ? '로그아웃 중...' : '로그아웃'}
+      </button>
+    </div>
   )
 }
