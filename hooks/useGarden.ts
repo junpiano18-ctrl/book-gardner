@@ -5,7 +5,7 @@ import {
   getPlants,
   createPlant,
   updatePlant,
-  waterPlant,
+  waterPlant as waterPlantLib,
 } from '@/lib/garden'
 import type { Plant, Quote } from '@/types'
 
@@ -50,7 +50,7 @@ export function useGarden(userId: string | undefined) {
     return updated
   }
 
-  async function water(input: {
+  async function waterPlant(input: {
     plantId: string
     bookId: string
     content: string
@@ -61,7 +61,7 @@ export function useGarden(userId: string | undefined) {
       return null
     }
     try {
-      const result = await waterPlant({ ...input, userId })
+      const result = await waterPlantLib({ ...input, userId })
       setPlants((prev) =>
         prev.map((p) => (p.id === input.plantId ? result.plant : p))
       )
@@ -72,5 +72,5 @@ export function useGarden(userId: string | undefined) {
     }
   }
 
-  return { plants, loading, error, refresh, addPlant, editPlant, water }
+  return { plants, loading, error, refresh, addPlant, editPlant, waterPlant }
 }

@@ -32,11 +32,13 @@ export async function waterPlant(input: WaterPlantInput): Promise<WaterPlantResu
 
   if (quoteError) throw quoteError
 
-  const { data: plant, error: rpcError } = await supabase.rpc('water_plant', {
-    p_plant_id: plantId,
-  })
+  const { data: plant, error: readError } = await supabase
+    .from('plants')
+    .select('*')
+    .eq('id', plantId)
+    .single()
 
-  if (rpcError) throw rpcError
+  if (readError) throw readError
 
   return { plant: plant as Plant, quote: quote as Quote }
 }

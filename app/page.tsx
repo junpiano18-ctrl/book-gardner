@@ -4,8 +4,11 @@ import { useState } from 'react'
 import { GardenView } from '@/components/Garden/GardenView'
 import { ShelfView } from '@/components/Garden/ShelfView'
 import { Header } from '@/components/ui/Header'
+import { WaterModal } from '@/components/ui/WaterModal'
 import { useGarden } from '@/hooks/useGarden'
-import type { PlantWithBook } from '@/types'
+import type { Plant, PlantStage, PlantWithBook, Quote } from '@/types'
+
+const STAGE_ORDER: PlantStage[] = ['seed', 'sprout', 'growing', 'bloom']
 
 type ViewMode = 'garden' | 'shelf'
 
@@ -162,12 +165,54 @@ const MOCK_PLANTS: PlantWithBook[] = [
 
 export default function HomePage() {
   const [view, setView] = useState<ViewMode>('garden')
+  const [plants, setPlants] = useState<PlantWithBook[]>(MOCK_PLANTS)
+  const [selectedPlant, setSelectedPlant] = useState<PlantWithBook | null>(null)
 
   useGarden(undefined)
-  const plants = MOCK_PLANTS
 
   const totalPoints = plants.reduce((sum, p) => sum + p.growth_point, 0)
   const bloomCount = plants.filter((p) => p.stage === 'bloom').length
+
+  async function mockWaterPlant(input: {
+    plantId: string
+    bookId: string
+    content: string
+    pageNumber?: number
+  }): Promise<{ plant: Plant; quote: Quote } | null> {
+    const before = plants.find((p) => p.id === input.plantId)
+    if (!before) return null
+
+    const totalNext = before.growth_point + 10
+    const willPromote = totalNext >= 100
+    const stageIdx = STAGE_ORDER.indexOf(before.stage)
+    const canPromote = willPromote && stageIdx < STAGE_ORDER.length - 1
+    const nextStage = canPromote ? STAGE_ORDER[stageIdx + 1] : before.stage
+    const nextGrowth = canPromote ? 0 : willPromote ? before.growth_point : totalNext
+    const now = new Date().toISOString()
+
+    const updated: PlantWithBook = {
+      ...before,
+      growth_point: nextGrowth,
+      stage: nextStage,
+      last_watered_at: now,
+      completed_at: nextStage === 'bloom' && canPromote ? now : before.completed_at,
+    }
+
+    setPlants((prev) => prev.map((p) => (p.id === input.plantId ? updated : p)))
+    setSelectedPlant(updated)
+
+    const quote: Quote = {
+      id: `q-${Date.now()}`,
+      user_id: before.user_id,
+      book_id: input.bookId,
+      plant_id: input.plantId,
+      content: input.content,
+      page_number: input.pageNumber,
+      watered_at: now,
+    }
+
+    return { plant: updated, quote }
+  }
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
@@ -189,7 +234,7 @@ export default function HomePage() {
           </div>
 
           {view === 'garden' ? (
-            <GardenView plants={plants} />
+            <GardenView plants={plants} onWater={setSelectedPlant} />
           ) : (
             <ShelfView plants={plants} />
           )}
@@ -202,6 +247,12 @@ export default function HomePage() {
           plants={plants}
         />
       </main>
+
+      <WaterModal
+        plant={selectedPlant}
+        onClose={() => setSelectedPlant(null)}
+        onWater={mockWaterPlant}
+      />
     </div>
   )
 }
