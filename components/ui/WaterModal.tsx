@@ -17,6 +17,44 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   bloom: '개화',
 }
 
+const BLOOM_MESSAGE = '활짝 핀 꽃이에요! 완독하면 도감에 기록돼요 📖'
+
+const ENCOURAGEMENT: Record<Exclude<PlantStage, 'bloom'>, {
+  far: string
+  mid: string
+  close: string
+  last: string
+}> = {
+  seed: {
+    far: '씨앗이 땅속에서 꿈틀대고 있어요 🌰',
+    mid: '곧 첫 잎이 나올 거예요, 조금만 더!',
+    close: '새싹이 거의 다 왔어요!',
+    last: '내일이면 새 잎을 볼 수 있어요 🌱',
+  },
+  sprout: {
+    far: '작은 잎들이 햇빛을 찾고 있어요',
+    mid: '잎이 조금씩 넓어지고 있어요',
+    close: '쑥쑥 자라날 준비가 됐어요!',
+    last: '다음엔 훌쩍 커있을 거예요 🌿',
+  },
+  growing: {
+    far: '꽃봉오리가 맺힐 날을 기다리고 있어요',
+    mid: '줄기가 튼튼해지고 있어요',
+    close: '꽃봉오리가 보이기 시작했어요!',
+    last: '다음 물주기에 꽃이 피어요! 🌸',
+  },
+}
+
+function getEncouragement(stage: PlantStage, growthPoint: number): string {
+  if (stage === 'bloom') return BLOOM_MESSAGE
+  const remaining = Math.max(1, Math.ceil((100 - growthPoint) / 10))
+  const set = ENCOURAGEMENT[stage]
+  if (remaining >= 8) return set.far
+  if (remaining >= 5) return set.mid
+  if (remaining >= 2) return set.close
+  return set.last
+}
+
 export interface WaterModalProps {
   plant: PlantWithBook | null
   onClose: () => void
@@ -61,6 +99,9 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
   }, [submitting, onClose])
 
   const progress = plant.growth_point % 100
+  const encouragement = getEncouragement(plant.stage, plant.growth_point)
+  const remaining =
+    plant.stage === 'bloom' ? 0 : Math.max(1, Math.ceil((100 - plant.growth_point) / 10))
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -153,9 +194,17 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 text-[11px] text-stone-500">
-              💧 한 번 물을 주면 +10pt, 100pt마다 한 단계 자라요
+          </div>
+
+          <div className="mb-5 rounded-2xl bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100">
+            <p className="text-sm font-medium text-emerald-900">
+              {encouragement}
             </p>
+            {plant.stage !== 'bloom' && (
+              <p className="mt-1 text-[11px] text-emerald-700/80">
+                다음 단계까지 💧 {remaining}회 남았어요
+              </p>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">

@@ -1,269 +1,146 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { GardenView } from '@/components/Garden/GardenView'
 import { ShelfView } from '@/components/Garden/ShelfView'
 import { Header } from '@/components/ui/Header'
 import { WaterModal } from '@/components/ui/WaterModal'
+import { useAuth } from '@/hooks/useAuth'
+import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
-import type { Plant, PlantStage, PlantWithBook, Quote } from '@/types'
-
-const STAGE_ORDER: PlantStage[] = ['seed', 'sprout', 'growing', 'bloom']
+import type { PlantWithBook } from '@/types'
 
 type ViewMode = 'garden' | 'shelf'
 
-const MOCK_PLANTS: PlantWithBook[] = [
-  {
-    id: 'p1',
-    book_id: 'b1',
-    user_id: 'u',
-    kdc_code: '813',
-    plant_name: '매화',
-    sci_name: 'Prunus mume',
-    family_name: '장미과',
-    stage: 'bloom',
-    growth_point: 120,
-    last_watered_at: '2026-05-22T09:00:00Z',
-    completed_at: undefined,
-    created_at: '2026-04-01T09:00:00Z',
-    book: {
-      id: 'b1',
-      user_id: 'u',
-      title: '소년이 온다',
-      author: '한강',
-      publisher: '창비',
-      kdc_code: '813',
-      status: 'reading',
-      total_pages: 220,
-      created_at: '2026-04-01T09:00:00Z',
-      updated_at: '2026-05-22T09:00:00Z',
-    },
-  },
-  {
-    id: 'p2',
-    book_id: 'b2',
-    user_id: 'u',
-    kdc_code: '491',
-    plant_name: '구절초',
-    sci_name: 'Dendranthema zawadskii',
-    family_name: '국화과',
-    stage: 'growing',
-    growth_point: 80,
-    last_watered_at: '2026-05-20T08:00:00Z',
-    created_at: '2026-04-10T09:00:00Z',
-    book: {
-      id: 'b2',
-      user_id: 'u',
-      title: '우리 몸은 작은 우주다',
-      author: '이왕재',
-      publisher: '청림',
-      kdc_code: '491',
-      status: 'reading',
-      total_pages: 360,
-      created_at: '2026-04-10T09:00:00Z',
-      updated_at: '2026-05-20T09:00:00Z',
-    },
-  },
-  {
-    id: 'p3',
-    book_id: 'b3',
-    user_id: 'u',
-    kdc_code: '199',
-    plant_name: '할미꽃',
-    sci_name: 'Pulsatilla koreana',
-    family_name: '미나리아재비과',
-    stage: 'sprout',
-    growth_point: 40,
-    last_watered_at: '2026-05-19T08:00:00Z',
-    created_at: '2026-05-01T09:00:00Z',
-    book: {
-      id: 'b3',
-      user_id: 'u',
-      title: '소크라테스 익스프레스',
-      author: '에릭 와이너',
-      publisher: '어크로스',
-      kdc_code: '199',
-      status: 'reading',
-      total_pages: 480,
-      created_at: '2026-05-01T09:00:00Z',
-      updated_at: '2026-05-19T09:00:00Z',
-    },
-  },
-  {
-    id: 'p4',
-    book_id: 'b4',
-    user_id: 'u',
-    kdc_code: '004',
-    plant_name: '솔이끼',
-    sci_name: 'Polytrichum commune',
-    family_name: '솔이끼과',
-    stage: 'seed',
-    growth_point: 0,
-    created_at: '2026-05-20T09:00:00Z',
-    book: {
-      id: 'b4',
-      user_id: 'u',
-      title: '컴퓨터 과학이 여는 세계',
-      author: '이광근',
-      publisher: '인사이트',
-      kdc_code: '004',
-      status: 'reading',
-      total_pages: 280,
-      created_at: '2026-05-20T09:00:00Z',
-      updated_at: '2026-05-20T09:00:00Z',
-    },
-  },
-  {
-    id: 'p5',
-    book_id: 'b5',
-    user_id: 'u',
-    kdc_code: '658',
-    plant_name: '대나무',
-    sci_name: 'Phyllostachys bambusoides',
-    family_name: '벼과',
-    stage: 'growing',
-    growth_point: 60,
-    created_at: '2026-05-05T09:00:00Z',
-    book: {
-      id: 'b5',
-      user_id: 'u',
-      title: '하이 아웃풋 매니지먼트',
-      author: '앤드루 그로브',
-      publisher: '청림',
-      kdc_code: '658',
-      status: 'reading',
-      total_pages: 320,
-      created_at: '2026-05-05T09:00:00Z',
-      updated_at: '2026-05-21T09:00:00Z',
-    },
-  },
-  {
-    id: 'p6',
-    book_id: 'b6',
-    user_id: 'u',
-    kdc_code: '911',
-    plant_name: '소나무',
-    sci_name: 'Pinus densiflora',
-    family_name: '소나무과',
-    stage: 'sprout',
-    growth_point: 20,
-    created_at: '2026-05-15T09:00:00Z',
-    book: {
-      id: 'b6',
-      user_id: 'u',
-      title: '하얼빈',
-      author: '김훈',
-      publisher: '문학동네',
-      kdc_code: '911',
-      status: 'reading',
-      total_pages: 304,
-      created_at: '2026-05-15T09:00:00Z',
-      updated_at: '2026-05-15T09:00:00Z',
-    },
-  },
-]
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 export default function HomePage() {
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
+  const {
+    plants,
+    loading: plantsLoading,
+    error: plantsError,
+    waterPlant,
+  } = useGarden(user?.id)
+  const { books, loading: booksLoading, error: booksError } = useBook(user?.id)
+
   const [view, setView] = useState<ViewMode>('garden')
-  const [plants, setPlants] = useState<PlantWithBook[]>(MOCK_PLANTS)
   const [selectedPlant, setSelectedPlant] = useState<PlantWithBook | null>(null)
+  const [weekAgo] = useState(() => Date.now() - WEEK_MS)
 
-  useGarden(undefined)
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/login')
+  }, [authLoading, user, router])
 
-  const totalPoints = plants.reduce((sum, p) => sum + p.growth_point, 0)
-  const bloomCount = plants.filter((p) => p.stage === 'bloom').length
+  const plantsWithBooks = useMemo<PlantWithBook[]>(() => {
+    if (plants.length === 0) return []
+    const booksById = new Map(books.map((b) => [b.id, b]))
+    return plants
+      .map((p) => {
+        const book = booksById.get(p.book_id)
+        return book ? { ...p, book } : null
+      })
+      .filter((p): p is PlantWithBook => p !== null)
+  }, [plants, books])
 
-  async function mockWaterPlant(input: {
-    plantId: string
-    bookId: string
-    content: string
-    pageNumber?: number
-  }): Promise<{ plant: Plant; quote: Quote } | null> {
-    const before = plants.find((p) => p.id === input.plantId)
-    if (!before) return null
+  // 모달에 표시 중인 식물도 hook의 최신 상태로 동기화 (물주기 직후 진행률 반영)
+  const selectedPlantFresh = useMemo(() => {
+    if (!selectedPlant) return null
+    return plantsWithBooks.find((p) => p.id === selectedPlant.id) ?? selectedPlant
+  }, [selectedPlant, plantsWithBooks])
 
-    const totalNext = before.growth_point + 10
-    const willPromote = totalNext >= 100
-    const stageIdx = STAGE_ORDER.indexOf(before.stage)
-    const canPromote = willPromote && stageIdx < STAGE_ORDER.length - 1
-    const nextStage = canPromote ? STAGE_ORDER[stageIdx + 1] : before.stage
-    const nextGrowth = canPromote ? 0 : willPromote ? before.growth_point : totalNext
-    const now = new Date().toISOString()
-
-    const updated: PlantWithBook = {
-      ...before,
-      growth_point: nextGrowth,
-      stage: nextStage,
-      last_watered_at: now,
-      completed_at: nextStage === 'bloom' && canPromote ? now : before.completed_at,
-    }
-
-    setPlants((prev) => prev.map((p) => (p.id === input.plantId ? updated : p)))
-    setSelectedPlant(updated)
-
-    const quote: Quote = {
-      id: `q-${Date.now()}`,
-      user_id: before.user_id,
-      book_id: input.bookId,
-      plant_id: input.plantId,
-      content: input.content,
-      page_number: input.pageNumber,
-      watered_at: now,
-    }
-
-    return { plant: updated, quote }
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
+        <Header activeKey="garden" />
+        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+          불러오는 중...
+        </main>
+      </div>
+    )
   }
+
+  const dataLoading = plantsLoading || booksLoading
+  const dataError = plantsError ?? booksError
+
+  const totalPoints = plantsWithBooks.reduce((sum, p) => sum + p.growth_point, 0)
+  const bloomCount = plantsWithBooks.filter((p) => p.stage === 'bloom').length
+  const weeklyWaterings = plantsWithBooks.filter(
+    (p) => p.last_watered_at && new Date(p.last_watered_at).getTime() >= weekAgo
+  ).length
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-      <Header activeKey="garden" actions={<ViewToggle view={view} onChange={setView} />} />
+      <Header
+        activeKey="garden"
+        actions={<ViewToggle view={view} onChange={setView} />}
+      />
 
       <main className="mx-auto flex w-full max-w-7xl gap-8 px-6 py-8">
         <section className="flex-1 min-w-0">
-          <div className="mb-6 flex items-end justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-stone-800">
-                {view === 'garden' ? '🪴 내 정원' : '📚 나의 책장'}
-              </h1>
-              <p className="mt-1 text-sm text-stone-500">
-                {view === 'garden'
-                  ? '읽는 만큼 자라는 식물을 가꿔보세요'
-                  : '책등의 두께와 색이 책을 말해줍니다'}
-              </p>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-stone-800">
+              {view === 'garden' ? '🪴 내 정원' : '📚 나의 책장'}
+            </h1>
+            <p className="mt-1 text-sm text-stone-500">
+              {view === 'garden'
+                ? '읽는 만큼 자라는 식물을 가꿔보세요'
+                : '책등의 두께와 색이 책을 말해줍니다'}
+            </p>
           </div>
 
-          {view === 'garden' ? (
-            <GardenView plants={plants} onWater={setSelectedPlant} />
+          {dataError && (
+            <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+              {dataError.message}
+            </div>
+          )}
+
+          {dataLoading ? (
+            <SkeletonGrid />
+          ) : plantsWithBooks.length === 0 ? (
+            <EmptyGarden />
+          ) : view === 'garden' ? (
+            <GardenView plants={plantsWithBooks} onWater={setSelectedPlant} />
           ) : (
-            <ShelfView plants={plants} />
+            <ShelfView plants={plantsWithBooks} />
           )}
         </section>
 
         <Sidebar
-          weeklyWaterings={4}
+          weeklyWaterings={weeklyWaterings}
           totalPoints={totalPoints}
           bloomCount={bloomCount}
-          plants={plants}
+          plants={plantsWithBooks}
         />
       </main>
 
       <WaterModal
-        plant={selectedPlant}
+        plant={selectedPlantFresh}
         onClose={() => setSelectedPlant(null)}
-        onWater={mockWaterPlant}
+        onWater={waterPlant}
       />
     </div>
   )
 }
 
-function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: ViewMode
+  onChange: (v: ViewMode) => void
+}) {
   return (
     <div className="inline-flex rounded-full bg-stone-200/70 p-1 text-sm">
       <button
         onClick={() => onChange('garden')}
         className={`rounded-full px-3 py-1.5 transition ${
-          view === 'garden' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-800'
+          view === 'garden'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-600 hover:text-stone-800'
         }`}
       >
         🪴 정원
@@ -271,11 +148,51 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
       <button
         onClick={() => onChange('shelf')}
         className={`rounded-full px-3 py-1.5 transition ${
-          view === 'shelf' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-800'
+          view === 'shelf'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-600 hover:text-stone-800'
         }`}
       >
         📚 책장
       </button>
+    </div>
+  )
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex flex-col items-center rounded-2xl bg-white/60 p-4 shadow-sm ring-1 ring-amber-900/5"
+        >
+          <div className="h-24 w-16 animate-pulse rounded-lg bg-stone-200" />
+          <div className="mt-4 h-3 w-20 animate-pulse rounded bg-stone-200" />
+          <div className="mt-2 h-2.5 w-28 animate-pulse rounded bg-stone-200/80" />
+          <div className="mt-4 h-1.5 w-full animate-pulse rounded-full bg-stone-200" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmptyGarden() {
+  return (
+    <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-16 text-center">
+      <div className="text-5xl">🪴</div>
+      <h2 className="mt-3 text-lg font-semibold text-stone-700">
+        아직 심은 책이 없어요
+      </h2>
+      <p className="mt-1 text-sm text-stone-500">
+        읽고 싶은 책을 찾아 첫 화분을 만들어보세요
+      </p>
+      <Link
+        href="/search"
+        className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+      >
+        🔎 책 검색으로 가기
+      </Link>
     </div>
   )
 }
@@ -293,7 +210,9 @@ function Sidebar({
 }) {
   const recent = [...plants]
     .filter((p) => p.last_watered_at)
-    .sort((a, b) => (b.last_watered_at ?? '').localeCompare(a.last_watered_at ?? ''))
+    .sort((a, b) =>
+      (b.last_watered_at ?? '').localeCompare(a.last_watered_at ?? '')
+    )
     .slice(0, 3)
 
   return (
@@ -314,17 +233,15 @@ function Sidebar({
             {recent.map((p) => (
               <li key={p.id} className="flex items-center gap-2">
                 <span>💧</span>
-                <span className="flex-1 truncate text-stone-700">{p.book.title}</span>
+                <span className="flex-1 truncate text-stone-700">
+                  {p.book.title}
+                </span>
                 <span className="text-[11px] text-stone-400">+10pt</span>
               </li>
             ))}
           </ul>
         )}
       </Card>
-
-      <button className="w-full rounded-2xl bg-gradient-to-br from-sky-400 to-emerald-400 px-4 py-4 text-base font-semibold text-white shadow-md transition hover:brightness-105 active:scale-[0.99]">
-        💧 오늘의 물주기
-      </button>
     </aside>
   )
 }
