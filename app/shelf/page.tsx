@@ -10,8 +10,12 @@ import { PlantIllustration } from '@/components/Plant/PlantIllustration'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
-import { getQuotesByBook, toggleQuoteFavorite } from '@/lib/quotes'
-import type { PlantStage, PlantWithBook, Quote } from '@/types'
+import {
+  getQuotesByBook,
+  searchQuotes,
+  toggleQuoteFavorite,
+} from '@/lib/quotes'
+import type { PlantStage, PlantWithBook, Quote, QuoteWithRefs } from '@/types'
 
 const STAGE_LABEL: Record<PlantStage, string> = {
   seed: '씨앗',
@@ -58,6 +62,41 @@ function ShelfPageInner() {
   const [quotesByBook, setQuotesByBook] = useState<Record<string, Quote[]>>({})
   const [waterModalPlant, setWaterModalPlant] = useState<PlantWithBook | null>(null)
   const loadedRef = useRef<Set<string>>(new Set())
+
+  // 검색 관련 상태
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<QuoteWithRefs[]>([])
+  const [searchError, setSearchError] = useState<Error | null>(null)
+  const [bookFilter, setBookFilter] = useState<string | null>(null)
+
+  // 디바운스 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+
+  // 디바운스된 쿼리로 실제 검색 — setState는 모두 async 콜백 안에서만
+  useEffect(() => {
+    if (!user) return
+    const trimmed = debouncedQuery.trim()
+    if (!trimmed) return
+    let mounted = true
+    searchQuotes(user.id, trimmed)
+      .then((rs) => {
+        if (!mounted) return
+        setSearchResults(rs)
+        setSearchError(null)
+      })
+      .catch((e) => {
+        if (mounted) setSearchError(e as Error)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [debouncedQuery, user])
+
+  const isSearching = debouncedQuery.trim().length > 0
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -116,6 +155,11 @@ function ShelfPageInner() {
           q.id === quote.id ? updated : q
         ),
       }))
+      setSearchResults((prev) =>
+        prev.map((q) =>
+          q.id === quote.id ? { ...q, is_favorite: updated.is_favorite } : q
+        )
+      )
     } catch {
       // 무시 — UI는 다음 fetch 때 보정됨
     }
@@ -156,13 +200,37 @@ function ShelfPageInner() {
           </p>
         </header>
 
+        <div className="mb-6">
+          <SearchBar
+            value={searchQuery}
+            onChange={(v) => {
+              setSearchQuery(v)
+              setBookFilter(null)
+            }}
+            onClear={() => {
+              setSearchQuery('')
+              setBookFilter(null)
+            }}
+          />
+        </div>
+
         {dataError && (
           <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
             {dataError.message}
           </div>
         )}
 
-        {dataLoading ? (
+        {isSearching ? (
+          <SearchResults
+            keyword={debouncedQuery.trim()}
+            rawKeyword={searchQuery.trim()}
+            results={searchResults}
+            error={searchError}
+            bookFilter={bookFilter}
+            onBookFilter={setBookFilter}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        ) : dataLoading ? (
           <ShelfSkeleton />
         ) : plantsWithBooks.length === 0 ? (
           <EmptyShelf />
@@ -418,4 +486,246 @@ function formatDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+function SearchBar({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onClear: () => void
+}) {
+  return (
+    <div className="relative">
+      <span
+        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
+        aria-hidden
+      >
+        🔍
+      </span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="문장에서 키워드 검색 (예: 사랑, 시간, 기억...)"
+        className="w-full rounded-full border border-amber-200 bg-white/80 py-3 pl-12 pr-12 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="검색어 지우기"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 transition hover:text-stone-600"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
+}
+
+function SearchResults({
+  keyword,
+  rawKeyword,
+  results,
+  error,
+  bookFilter,
+  onBookFilter,
+  onToggleFavorite,
+}: {
+  keyword: string
+  rawKeyword: string
+  results: QuoteWithRefs[]
+  error: Error | null
+  bookFilter: string | null
+  onBookFilter: (id: string | null) => void
+  onToggleFavorite: (q: Quote) => void
+}) {
+  // 디바운스 대기 중인 상태 표시
+  const debouncing = rawKeyword !== keyword
+
+  // 책별 개수 집계
+  const bookGroups = (() => {
+    const map = new Map<string, { title: string; count: number }>()
+    for (const r of results) {
+      if (!r.book) continue
+      const ex = map.get(r.book.id)
+      if (ex) ex.count++
+      else map.set(r.book.id, { title: r.book.title, count: 1 })
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].count - a[1].count)
+  })()
+
+  const filtered = bookFilter
+    ? results.filter((r) => r.book_id === bookFilter)
+    : results
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-amber-900/5">
+        <p className="text-sm font-medium text-stone-700">
+          🔍 &ldquo;{keyword}&rdquo; 검색
+          {!debouncing && !error && (
+            <span className="ml-2 text-xs text-stone-500">
+              · 총 {results.length}개
+            </span>
+          )}
+        </p>
+      </div>
+
+      {error && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          {error.message}
+        </div>
+      )}
+
+      {bookGroups.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          <Chip active={bookFilter === null} onClick={() => onBookFilter(null)}>
+            전체 ({results.length})
+          </Chip>
+          {bookGroups.map(([id, info]) => (
+            <Chip
+              key={id}
+              active={bookFilter === id}
+              onClick={() => onBookFilter(id)}
+            >
+              {info.title} ({info.count})
+            </Chip>
+          ))}
+        </div>
+      )}
+
+      {debouncing && results.length === 0 ? (
+        <p className="py-12 text-center text-sm text-stone-500">
+          검색 중...
+        </p>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-12 text-center">
+          <div className="text-4xl">🔎</div>
+          <p className="mt-2 text-sm text-stone-600">검색 결과가 없어요</p>
+          <p className="mt-0.5 text-xs text-stone-400">
+            다른 키워드로 시도해보세요
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((q) => (
+            <SearchResultCard
+              key={q.id}
+              quote={q}
+              keyword={keyword}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function SearchResultCard({
+  quote,
+  keyword,
+  onToggleFavorite,
+}: {
+  quote: QuoteWithRefs
+  keyword: string
+  onToggleFavorite: (q: Quote) => void
+}) {
+  return (
+    <li
+      className="rounded-2xl bg-amber-50 px-5 py-4 shadow-sm ring-1 ring-amber-200/70"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.45), transparent 60%)',
+      }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+        <span className="line-clamp-1 font-medium text-stone-700">
+          📖 {quote.book?.title ?? '책 정보 없음'}
+        </span>
+        <span className="shrink-0 text-stone-400">
+          {formatDate(quote.watered_at)}
+        </span>
+      </div>
+
+      <blockquote
+        className="border-l-2 border-amber-400 pl-3 text-sm italic leading-relaxed text-stone-800"
+        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
+      >
+        <HighlightedText text={quote.content} keyword={keyword} />
+      </blockquote>
+
+      <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
+        <button
+          type="button"
+          onClick={() => onToggleFavorite(quote)}
+          aria-label={quote.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          aria-pressed={!!quote.is_favorite}
+          className="text-base transition hover:scale-110"
+        >
+          {quote.is_favorite ? '⭐' : '☆'}
+        </button>
+        {quote.page_number && <span>p.{quote.page_number}</span>}
+      </div>
+    </li>
+  )
+}
+
+function HighlightedText({
+  text,
+  keyword,
+}: {
+  text: string
+  keyword: string
+}) {
+  const trimmed = keyword.trim()
+  if (!trimmed) return <>{text}</>
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  const lowerKey = trimmed.toLowerCase()
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === lowerKey ? (
+          <mark
+            key={i}
+            className="rounded bg-yellow-200 px-0.5 text-stone-900"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  )
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+        active
+          ? 'bg-amber-700 text-white shadow-sm'
+          : 'bg-white/70 text-stone-700 ring-1 ring-amber-200 hover:bg-amber-50'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }

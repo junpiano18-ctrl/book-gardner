@@ -23,6 +23,24 @@ export async function getAllQuotesByUser(userId: string): Promise<QuoteWithRefs[
   return (data ?? []) as unknown as QuoteWithRefs[]
 }
 
+export async function searchQuotes(
+  userId: string,
+  keyword: string
+): Promise<QuoteWithRefs[]> {
+  const trimmed = keyword.trim()
+  if (!trimmed) return []
+
+  const { data, error } = await supabase
+    .from('quotes')
+    .select('*, book:books(*), plant:plants(*)')
+    .eq('user_id', userId)
+    .ilike('content', `%${trimmed}%`)
+    .order('watered_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as unknown as QuoteWithRefs[]
+}
+
 export interface AddQuoteInput {
   userId: string
   bookId: string
