@@ -76,4 +76,5 @@ export interface KakaoBook {
   sale_price: number
   thumbnail: string
   status: string
+  kdc_code?: string
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { BookCard } from './BookCard'
-import { guessKdcFromKakaoBook, normalizeIsbns } from '@/lib/books'
+import { normalizeIsbns } from '@/lib/books'
 import type { KakaoBook } from '@/types'
 
 interface BookSearchResultProps {
@@ -41,7 +41,7 @@ export function BookSearchResult({
         const isbns = normalizeIsbns(book.isbn)
         const key = isbns.join('-') || `${book.title}-${book.datetime}`
         const alreadyPlanted = isbns.some((i) => plantedIsbns.has(i))
-        const kdcCode = guessKdcFromKakaoBook(book)
+        const kdcCode = book.kdc_code ?? '8'
         const isPlanting = plantingIsbn !== null && isbns.includes(plantingIsbn)
 
         return (

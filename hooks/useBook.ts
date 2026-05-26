@@ -5,7 +5,7 @@ import {
   getBooks,
   createBook,
   updateBookStatus,
-  searchKakaoBooks,
+  searchBooks as searchBooksApi,
 } from '@/lib/books'
 import type { Book, BookStatus, KakaoBook } from '@/types'
 
@@ -54,7 +54,7 @@ export function useBook(userId: string | undefined) {
     setSearching(true)
     setError(null)
     try {
-      const results = await searchKakaoBooks(query)
+      const results = await searchBooksApi(query)
       setSearchResults(results)
       return results
     } catch (e) {
