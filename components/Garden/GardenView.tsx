@@ -1,16 +1,9 @@
 'use client'
 
-import type { ComponentType } from 'react'
-import { Daenamu } from '@/components/Plant/Daenamu'
-import { Euari } from '@/components/Plant/Euari'
-import { Gujulcho } from '@/components/Plant/Gujulcho'
-import { Halmiggot } from '@/components/Plant/Halmiggot'
-import { Jindalrae } from '@/components/Plant/Jindalrae'
-import { Maehwa } from '@/components/Plant/Maehwa'
-import { Neutinamu } from '@/components/Plant/Neutinamu'
-import { Solikki } from '@/components/Plant/Solikki'
-import { Sonamu } from '@/components/Plant/Sonamu'
-import { Yeonggot } from '@/components/Plant/Yeonggot'
+import {
+  PlantIllustration,
+  hasPlantIllustration,
+} from '@/components/Plant/PlantIllustration'
 import type { PlantStage, PlantWithBook } from '@/types'
 
 const STAGE_EMOJI: Record<PlantStage, string> = {
@@ -27,35 +20,26 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   bloom: '개화',
 }
 
-const PLANT_COMPONENTS: Partial<
-  Record<string, ComponentType<{ stage: PlantStage; size?: number }>>
-> = {
-  '0': Solikki,
-  '1': Halmiggot,
-  '2': Yeonggot,
-  '3': Neutinamu,
-  '4': Gujulcho,
-  '5': Daenamu,
-  '6': Jindalrae,
-  '7': Euari,
-  '8': Maehwa,
-  '9': Sonamu,
-}
-
 interface GardenViewProps {
   plants: PlantWithBook[]
   totalSlots?: number
   onWater?: (plant: PlantWithBook) => void
+  onSelect?: (plant: PlantWithBook) => void
 }
 
-export function GardenView({ plants, totalSlots = 12, onWater }: GardenViewProps) {
+export function GardenView({
+  plants,
+  totalSlots = 12,
+  onWater,
+  onSelect,
+}: GardenViewProps) {
   const slots = Array.from({ length: Math.max(totalSlots, plants.length) }, (_, i) => plants[i] ?? null)
 
   return (
     <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
       {slots.map((plant, i) =>
         plant ? (
-          <PotCard key={plant.id} plant={plant} onWater={onWater} />
+          <PotCard key={plant.id} plant={plant} onWater={onWater} onSelect={onSelect} />
         ) : (
           <EmptyPot key={`empty-${i}`} />
         )
@@ -64,16 +48,41 @@ export function GardenView({ plants, totalSlots = 12, onWater }: GardenViewProps
   )
 }
 
-function PotCard({ plant, onWater }: { plant: PlantWithBook; onWater?: (p: PlantWithBook) => void }) {
+function PotCard({
+  plant,
+  onWater,
+  onSelect,
+}: {
+  plant: PlantWithBook
+  onWater?: (p: PlantWithBook) => void
+  onSelect?: (p: PlantWithBook) => void
+}) {
   const progress = Math.min(100, plant.growth_point % 100 || (plant.stage === 'bloom' ? 100 : 0))
-  const kdcKey = (plant.kdc_code ?? '').charAt(0)
-  const PlantSvg = PLANT_COMPONENTS[kdcKey]
+  const hasSvg = hasPlantIllustration(plant.kdc_code)
+  const clickable = !!onSelect
 
   return (
-    <div className="group relative flex flex-col items-center rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-amber-900/5 transition hover:-translate-y-0.5 hover:shadow-md">
-      {PlantSvg ? (
+    <div
+      className={`group relative flex flex-col items-center rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-amber-900/5 transition hover:-translate-y-0.5 hover:shadow-md ${
+        clickable ? 'cursor-pointer' : ''
+      }`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onSelect!(plant) : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect!(plant)
+              }
+            }
+          : undefined
+      }
+    >
+      {hasSvg ? (
         <div className="flex h-28 w-full items-end justify-center">
-          <PlantSvg stage={plant.stage} size={100} />
+          <PlantIllustration kdcCode={plant.kdc_code} stage={plant.stage} size={100} />
         </div>
       ) : (
         <>
@@ -103,7 +112,11 @@ function PotCard({ plant, onWater }: { plant: PlantWithBook; onWater?: (p: Plant
 
       {onWater && (
         <button
-          onClick={() => onWater(plant)}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onWater(plant)
+          }}
           className="absolute right-2 top-2 rounded-full bg-sky-100 px-2 py-1 text-xs text-sky-700 opacity-0 transition group-hover:opacity-100 hover:bg-sky-200"
           aria-label="물주기"
         >

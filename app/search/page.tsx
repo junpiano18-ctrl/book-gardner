@@ -109,7 +109,7 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="책 제목, 저자, 출판사로 검색"
-            className="flex-1 rounded-full border border-stone-300 bg-white/80 px-5 py-3 text-sm shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            className="flex-1 rounded-full border border-stone-300 bg-white/80 px-5 py-3 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
           />
           <button
             type="submit"

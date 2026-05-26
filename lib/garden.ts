@@ -54,6 +54,17 @@ export async function getPlants(userId: string): Promise<Plant[]> {
   return (data ?? []) as Plant[]
 }
 
+export async function getPlantByBookId(bookId: string): Promise<Plant | null> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('*')
+    .eq('book_id', bookId)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as Plant | null) ?? null
+}
+
 export async function createPlant(
   plant: Omit<Plant, 'id' | 'created_at'>
 ): Promise<Plant> {

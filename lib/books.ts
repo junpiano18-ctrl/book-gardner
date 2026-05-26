@@ -58,6 +58,17 @@ export async function getBooks(userId: string): Promise<Book[]> {
   return (data ?? []) as Book[]
 }
 
+export async function getBookById(id: string): Promise<Book | null> {
+  const { data, error } = await supabase
+    .from('books')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data as Book | null) ?? null
+}
+
 export async function createBook(
   book: Omit<Book, 'id' | 'created_at' | 'updated_at'>
 ): Promise<Book> {

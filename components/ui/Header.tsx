@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
-  { key: 'garden', label: '내 정원', href: '/' },
-  { key: 'search', label: '책 검색', href: '/search' },
-  { key: 'library', label: '완독 서재', href: '/library' },
+  { key: 'garden', label: '🌱 내 정원', href: '/' },
+  { key: 'shelf', label: '📚 책장', href: '/shelf' },
+  { key: 'search', label: '🔍 책 검색', href: '/search' },
+  { key: 'dogan', label: '🌿 도감', href: '/dogan' },
 ]
 
 interface HeaderProps {
-  activeKey?: 'garden' | 'search' | 'library'
+  activeKey?: 'garden' | 'shelf' | 'search' | 'dogan'
   actions?: ReactNode
 }
 

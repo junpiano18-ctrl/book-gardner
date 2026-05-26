@@ -47,6 +47,7 @@ export interface Quote {
   content: string
   page_number?: number
   watered_at: string
+  is_favorite?: boolean
 }
 
 export interface KdcPlant {
@@ -56,6 +57,11 @@ export interface KdcPlant {
 }
 
 export type PlantWithBook = Plant & { book: Book }
+
+export type QuoteWithRefs = Quote & {
+  book: Book | null
+  plant: Plant | null
+}
 
 export interface KakaoBook {
   title: string

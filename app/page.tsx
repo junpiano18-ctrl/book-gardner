@@ -103,9 +103,16 @@ export default function HomePage() {
           ) : plantsWithBooks.length === 0 ? (
             <EmptyGarden />
           ) : view === 'garden' ? (
-            <GardenView plants={plantsWithBooks} onWater={setSelectedPlant} />
+            <GardenView
+              plants={plantsWithBooks}
+              onWater={setSelectedPlant}
+              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+            />
           ) : (
-            <ShelfView plants={plantsWithBooks} />
+            <ShelfView
+              plants={plantsWithBooks}
+              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+            />
           )}
         </section>
 

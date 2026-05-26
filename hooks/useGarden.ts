@@ -7,6 +7,7 @@ import {
   updatePlant,
   waterPlant as waterPlantLib,
 } from '@/lib/garden'
+import { addQuote as addQuoteLib } from '@/lib/quotes'
 import type { Plant, Quote } from '@/types'
 
 export function useGarden(userId: string | undefined) {
@@ -61,6 +62,11 @@ export function useGarden(userId: string | undefined) {
       return null
     }
     try {
+      const target = plants.find((p) => p.id === input.plantId)
+      if (target?.completed_at) {
+        const quote = await addQuoteLib({ ...input, userId })
+        return { plant: target, quote }
+      }
       const result = await waterPlantLib({ ...input, userId })
       setPlants((prev) =>
         prev.map((p) => (p.id === input.plantId ? result.plant : p))

@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
+import Link from 'next/link'
+import { getQuotesByBook } from '@/lib/quotes'
 import type { Plant, PlantStage, PlantWithBook, Quote } from '@/types'
 
 const STAGE_EMOJI: Record<PlantStage, string> = {
@@ -17,7 +19,7 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   bloom: '개화',
 }
 
-const BLOOM_MESSAGE = '활짝 핀 꽃이에요! 완독하면 도감에 기록돼요 📖'
+const BLOOM_MESSAGE = '🌸 개화 단계예요! 물주기를 한 번 더 하면 완독 처리됩니다'
 
 const ENCOURAGEMENT: Record<Exclude<PlantStage, 'bloom'>, {
   far: string
@@ -83,12 +85,31 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [promotion, setPromotion] = useState<PlantStage | null>(null)
+  const [completed, setCompleted] = useState(false)
   const [entered, setEntered] = useState(false)
+
+  const isDogamMode = !!plant.completed_at
+  const [quoteCount, setQuoteCount] = useState<number | null>(null)
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true))
     return () => cancelAnimationFrame(id)
   }, [])
+
+  useEffect(() => {
+    if (!isDogamMode) return
+    let mounted = true
+    getQuotesByBook(plant.book_id)
+      .then((qs) => {
+        if (mounted) setQuoteCount(qs.length)
+      })
+      .catch(() => {
+        if (mounted) setQuoteCount(0)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [isDogamMode, plant.book_id])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -131,7 +152,15 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
         return
       }
 
-      if (result.plant.stage !== plant.stage) {
+      const justCompleted = !plant.completed_at && !!result.plant.completed_at
+
+      if (isDogamMode) {
+        setQuoteCount((c) => (c == null ? 1 : c + 1))
+        setContent('')
+        setPageInput('')
+      } else if (justCompleted) {
+        setCompleted(true)
+      } else if (result.plant.stage !== plant.stage) {
         setPromotion(result.plant.stage)
         setTimeout(onClose, 1800)
       } else {
@@ -179,33 +208,55 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
             </div>
           </div>
 
-          <div className="mb-6">
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="font-medium text-stone-700">
-                {STAGE_LABEL[plant.stage]}
-              </span>
-              <span className="text-stone-500">
-                {progress} / 100 · 총 {plant.growth_point}pt
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mb-5 rounded-2xl bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100">
-            <p className="text-sm font-medium text-emerald-900">
-              {encouragement}
-            </p>
-            {plant.stage !== 'bloom' && (
-              <p className="mt-1 text-[11px] text-emerald-700/80">
-                다음 단계까지 💧 {remaining}회 남았어요
+          {isDogamMode ? (
+            <div className="mb-5 rounded-2xl bg-amber-50/70 px-4 py-3 ring-1 ring-amber-200">
+              <p className="text-sm font-medium text-amber-900">
+                📖 완독한 책의 도감에 한 줄 더하기
               </p>
-            )}
-          </div>
+              <p className="mt-1 text-[11px] text-amber-700/80">
+                {quoteCount == null
+                  ? '이 책에 남긴 문장을 세고 있어요...'
+                  : `이 책에 남긴 ${quoteCount + 1}번째 기록이에요`}
+              </p>
+              <Link
+                href={`/books/${plant.book_id}`}
+                onClick={onClose}
+                className="mt-2 inline-block text-[11px] font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              >
+                이 책의 모든 문장 보기 →
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="mb-6">
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <span className="font-medium text-stone-700">
+                    {STAGE_LABEL[plant.stage]}
+                  </span>
+                  <span className="text-stone-500">
+                    {progress} / 100 · 총 {plant.growth_point}pt
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-5 rounded-2xl bg-emerald-50/70 px-4 py-3 ring-1 ring-emerald-100">
+                <p className="text-sm font-medium text-emerald-900">
+                  {encouragement}
+                </p>
+                {plant.stage !== 'bloom' && (
+                  <p className="mt-1 text-[11px] text-emerald-700/80">
+                    다음 단계까지 💧 {remaining}회 남았어요
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
@@ -220,7 +271,11 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
                 maxLength={280}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="오늘 마음에 남은 한 문장을 적어주세요"
+                placeholder={
+                  isDogamMode
+                    ? '다시 읽으며 만난 한 문장을 적어주세요'
+                    : '오늘 마음에 남은 한 문장을 적어주세요'
+                }
                 className="w-full resize-none rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
               />
               <div className="mt-1 text-right text-[11px] text-stone-400">
@@ -263,9 +318,17 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
               <button
                 type="submit"
                 disabled={submitting || !content.trim()}
-                className="flex-[1.4] rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                className={`flex-[1.4] rounded-full px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isDogamMode
+                    ? 'bg-gradient-to-br from-amber-500 to-rose-500'
+                    : 'bg-gradient-to-br from-sky-500 to-emerald-500'
+                }`}
               >
-                {submitting ? '주는 중...' : '💧 물주기'}
+                {submitting
+                  ? '기록 중...'
+                  : isDogamMode
+                    ? '📝 문장 기록'
+                    : '💧 물주기'}
               </button>
             </div>
           </form>
@@ -280,6 +343,36 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
             <p className="mt-2 text-sm text-stone-600">
               {plant.plant_name}이(가) 한 뼘 더 자랐어요 🌟
             </p>
+          </div>
+        )}
+
+        {completed && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#fdf6ee]/95 px-6 text-center backdrop-blur animate-in fade-in">
+            <div className="text-8xl">📖</div>
+            <div className="mt-4 text-2xl font-bold text-stone-800">
+              완독 축하해요!
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm text-stone-600">
+              『{plant.book.title}』을(를) 도감에 기록했어요
+            </p>
+            <p className="mt-1 text-xs text-stone-500">
+              🌸 {plant.plant_name}이(가) 활짝 폈어요
+            </p>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-stone-300 bg-white/70 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+              >
+                닫기
+              </button>
+              <Link
+                href="/library"
+                className="rounded-full bg-gradient-to-br from-amber-500 to-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+              >
+                📖 도감 보러 가기
+              </Link>
+            </div>
           </div>
         )}
       </div>

@@ -42,9 +42,16 @@ function spineWidth(totalPages: number | undefined): number {
 interface ShelfViewProps {
   plants: PlantWithBook[]
   booksPerShelf?: number
+  selectedId?: string | null
+  onSelect?: (plant: PlantWithBook) => void
 }
 
-export function ShelfView({ plants, booksPerShelf = 8 }: ShelfViewProps) {
+export function ShelfView({
+  plants,
+  booksPerShelf = 8,
+  selectedId,
+  onSelect,
+}: ShelfViewProps) {
   const shelves: PlantWithBook[][] = []
   for (let i = 0; i < plants.length; i += booksPerShelf) {
     shelves.push(plants.slice(i, i + booksPerShelf))
@@ -54,13 +61,21 @@ export function ShelfView({ plants, booksPerShelf = 8 }: ShelfViewProps) {
   return (
     <div className="space-y-2 rounded-2xl bg-gradient-to-b from-amber-100 to-amber-200/60 p-6 ring-1 ring-amber-900/10">
       {shelves.map((row, idx) => (
-        <Shelf key={idx} books={row} />
+        <Shelf key={idx} books={row} selectedId={selectedId} onSelect={onSelect} />
       ))}
     </div>
   )
 }
 
-function Shelf({ books }: { books: PlantWithBook[] }) {
+function Shelf({
+  books,
+  selectedId,
+  onSelect,
+}: {
+  books: PlantWithBook[]
+  selectedId?: string | null
+  onSelect?: (plant: PlantWithBook) => void
+}) {
   return (
     <div className="relative">
       <div className="flex min-h-[220px] items-end justify-start gap-2 px-3">
@@ -69,7 +84,14 @@ function Shelf({ books }: { books: PlantWithBook[] }) {
             아직 심은 책이 없어요
           </div>
         ) : (
-          books.map((plant) => <BookSpine key={plant.id} plant={plant} />)
+          books.map((plant) => (
+            <BookSpine
+              key={plant.id}
+              plant={plant}
+              selected={selectedId === plant.book_id}
+              onSelect={onSelect}
+            />
+          ))
         )}
       </div>
       <div className="h-3 rounded-sm bg-gradient-to-b from-amber-900 to-amber-950 shadow-inner" />
@@ -77,13 +99,38 @@ function Shelf({ books }: { books: PlantWithBook[] }) {
   )
 }
 
-function BookSpine({ plant }: { plant: PlantWithBook }) {
+function BookSpine({
+  plant,
+  selected,
+  onSelect,
+}: {
+  plant: PlantWithBook
+  selected: boolean
+  onSelect?: (plant: PlantWithBook) => void
+}) {
   const width = spineWidth(plant.book.total_pages)
   const kdcKey = (plant.book.kdc_code ?? '0').charAt(0)
   const color = KDC_SPINE_COLOR[kdcKey] ?? 'bg-stone-500'
+  const clickable = !!onSelect
 
   return (
-    <div className="group relative flex flex-col items-center">
+    <div
+      className={`group relative flex flex-col items-center ${clickable ? 'cursor-pointer' : ''}`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-pressed={clickable ? selected : undefined}
+      onClick={clickable ? () => onSelect!(plant) : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onSelect!(plant)
+              }
+            }
+          : undefined
+      }
+    >
       <div
         className="-mb-1 text-2xl"
         aria-label={STAGE_LABEL[plant.stage]}
@@ -93,7 +140,11 @@ function BookSpine({ plant }: { plant: PlantWithBook }) {
       </div>
 
       <div
-        className={`relative flex h-44 cursor-pointer items-center justify-center rounded-t-sm shadow-md ring-1 ring-black/10 transition group-hover:-translate-y-1 ${color}`}
+        className={`relative flex h-44 cursor-pointer items-center justify-center rounded-t-sm shadow-md transition ${color} ${
+          selected
+            ? '-translate-y-2 ring-2 ring-amber-700 shadow-lg'
+            : 'ring-1 ring-black/10 group-hover:-translate-y-1'
+        }`}
         style={{ width }}
       >
         <span
