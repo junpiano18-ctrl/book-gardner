@@ -63,6 +63,19 @@ export type QuoteWithRefs = Quote & {
   plant: Plant | null
 }
 
+export interface PlantInfo {
+  kdc_code: string
+  plant_name: string
+  sci_name: string
+  family_kor?: string
+  family_sci?: string
+  genus_kor?: string
+  genus_sci?: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface KakaoBook {
   title: string
   contents: string
