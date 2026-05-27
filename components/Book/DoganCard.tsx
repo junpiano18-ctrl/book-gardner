@@ -7,9 +7,9 @@ import {
   PlantIllustration,
   hasPlantIllustration,
 } from '@/components/Plant/PlantIllustration'
-import { getPlantByKdc } from '@/lib/plants'
+import { getPlantByKdc, getPlantInfo } from '@/lib/plants'
 import { getQuotesByBook } from '@/lib/quotes'
-import type { Book, Plant, Quote } from '@/types'
+import type { Book, Plant, PlantInfo, Quote } from '@/types'
 
 interface DoganCardProps {
   book: Book
@@ -25,6 +25,7 @@ export function DoganCard({ book, plant, number }: DoganCardProps) {
   const [lastQuote, setLastQuote] = useState<Quote | null>(null)
   const [quoteCount, setQuoteCount] = useState(0)
   const [quotesLoaded, setQuotesLoaded] = useState(false)
+  const [plantInfo, setPlantInfo] = useState<PlantInfo | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -42,6 +43,16 @@ export function DoganCard({ book, plant, number }: DoganCardProps) {
       mounted = false
     }
   }, [book.id])
+
+  useEffect(() => {
+    let mounted = true
+    getPlantInfo(book.kdc_code).then((info) => {
+      if (mounted) setPlantInfo(info)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [book.kdc_code])
 
   const plantKdc = plant?.kdc_code ?? book.kdc_code
   const hasSvg = hasPlantIllustration(plantKdc)
@@ -93,6 +104,7 @@ export function DoganCard({ book, plant, number }: DoganCardProps) {
             plantName={plantName}
             sciName={sciName}
             familyName={familyName}
+            plantInfo={plantInfo}
             completedAt={completedAt}
             lastQuote={lastQuote}
             quoteCount={quoteCount}
@@ -188,6 +200,7 @@ function BackContent({
   plantName,
   sciName,
   familyName,
+  plantInfo,
   completedAt,
   lastQuote,
   quoteCount,
@@ -200,34 +213,75 @@ function BackContent({
   plantName: string
   sciName: string
   familyName: string
+  plantInfo: PlantInfo | null
   completedAt?: string
   lastQuote: Quote | null
   quoteCount: number
   quotesLoaded: boolean
   numberLabel: string
 }) {
+  const familyKor = plantInfo?.family_kor ?? familyName
+  const familySci = plantInfo?.family_sci
+  const genusKor = plantInfo?.genus_kor
+  const genusSci = plantInfo?.genus_sci
+  const hasForestData = !!(familySci || genusKor || genusSci)
+  const hasClassification = !!(familyKor || familySci || genusKor || genusSci)
+
   return (
-    <div className="flex h-full w-full flex-col px-4 pb-3 pt-3.5">
+    <div className="flex h-full w-full flex-col px-3.5 pb-3 pt-3">
       <div className="flex flex-col items-center">
         {hasSvg ? (
-          <PlantIllustration kdcCode={plantKdc} stage="bloom" size={72} />
+          <PlantIllustration kdcCode={plantKdc} stage="bloom" size={56} />
         ) : (
-          <div className="flex h-[72px] w-[72px] items-center justify-center text-4xl">
+          <div className="flex h-[56px] w-[56px] items-center justify-center text-3xl">
             🌸
           </div>
         )}
-        <h3 className="mt-1 text-sm font-bold text-stone-800">{plantName}</h3>
+        <h3 className="mt-0.5 text-sm font-bold leading-tight text-stone-800">
+          {plantName}
+        </h3>
         {sciName && (
-          <p className="text-[10px] italic text-stone-500">{sciName}</p>
-        )}
-        {familyName && (
-          <p className="text-[10px] text-stone-500">{familyName}</p>
+          <p className="text-[10px] italic leading-tight text-stone-500">
+            {sciName}
+          </p>
         )}
       </div>
 
-      <div className="my-2 border-t border-dashed border-amber-300/70" />
+      {hasClassification && (
+        <div className="mt-1.5 rounded-md bg-amber-100/60 px-2 py-1 leading-tight ring-1 ring-amber-200/60">
+          {(familyKor || familySci) && (
+            <p className="flex items-baseline gap-1 text-[10px]">
+              <span className="w-3 shrink-0 text-stone-500">과</span>
+              {familyKor && (
+                <span className="truncate text-stone-800">{familyKor}</span>
+              )}
+              {familySci && (
+                <span className="truncate italic text-stone-500">{familySci}</span>
+              )}
+            </p>
+          )}
+          {(genusKor || genusSci) && (
+            <p className="flex items-baseline gap-1 text-[10px]">
+              <span className="w-3 shrink-0 text-stone-500">속</span>
+              {genusKor && (
+                <span className="truncate text-stone-800">{genusKor}</span>
+              )}
+              {genusSci && (
+                <span className="truncate italic text-stone-500">{genusSci}</span>
+              )}
+            </p>
+          )}
+          {hasForestData && (
+            <p className="mt-0.5 text-[8.5px] italic text-stone-500">
+              🌿 산림청 국가표준식물목록
+            </p>
+          )}
+        </div>
+      )}
 
-      <div className="flex-1 text-[11px] text-stone-700">
+      <div className="my-1.5 border-t border-dashed border-amber-300/70" />
+
+      <div className="flex-1 text-[10.5px] text-stone-700">
         <div className="flex items-center justify-between text-stone-500">
           <span>📅 {completedAt ? formatDate(completedAt) : '—'}</span>
           {quotesLoaded && (
@@ -236,11 +290,11 @@ function BackContent({
             </span>
           )}
         </div>
-        <div className="mt-2">
+        <div className="mt-1">
           {!quotesLoaded ? (
             <p className="text-stone-400">기록 불러오는 중...</p>
           ) : lastQuote ? (
-            <blockquote className="border-l-2 border-emerald-300 pl-2 italic leading-snug text-stone-700 line-clamp-3">
+            <blockquote className="border-l-2 border-emerald-300 pl-2 italic leading-snug text-stone-700 line-clamp-2">
               &ldquo;{lastQuote.content}&rdquo;
             </blockquote>
           ) : (

@@ -74,7 +74,7 @@ export default function QuotesPage() {
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
         <Header />
-        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
       </div>
@@ -85,7 +85,7 @@ export default function QuotesPage() {
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
       <Header />
 
-      <main className="mx-auto w-full max-w-3xl px-6 py-8">
+      <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-stone-800">📜 내 문장</h1>
@@ -220,7 +220,7 @@ function EmptyState() {
         물주기를 하며 책에서 만난 문장을 모아보세요
       </p>
       <Link
-        href="/"
+        href="/garden"
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
       >
         🪴 정원으로 가기

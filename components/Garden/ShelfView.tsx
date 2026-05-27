@@ -16,18 +16,21 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   bloom: '개화',
 }
 
+// 톤다운한 책등 색상 — KDC별 매핑 (6색 팔레트 순환)
 const KDC_SPINE_COLOR: Record<string, string> = {
-  '0': 'bg-slate-500',
-  '1': 'bg-violet-600',
-  '2': 'bg-amber-500',
-  '3': 'bg-sky-600',
-  '4': 'bg-emerald-600',
-  '5': 'bg-red-600',
-  '6': 'bg-pink-500',
-  '7': 'bg-orange-500',
-  '8': 'bg-rose-700',
-  '9': 'bg-stone-600',
+  '0': '#6a6a8a',
+  '1': '#8a6a7a',
+  '2': '#5a7a6a',
+  '3': '#a07850',
+  '4': '#7a8a5a',
+  '5': '#8a5a4a',
+  '6': '#8a6a7a',
+  '7': '#5a7a6a',
+  '8': '#a07850',
+  '9': '#7a8a5a',
 }
+
+const DEFAULT_SPINE_COLOR = '#6a6a8a'
 
 const MIN_SPINE_W = 28
 const MAX_SPINE_W = 64
@@ -59,7 +62,7 @@ export function ShelfView({
   if (shelves.length === 0) shelves.push([])
 
   return (
-    <div className="space-y-2 rounded-2xl bg-gradient-to-b from-amber-100 to-amber-200/60 p-6 ring-1 ring-amber-900/10">
+    <div className="space-y-2 rounded-2xl bg-gradient-to-b from-amber-100 to-amber-200/60 p-4 ring-1 ring-amber-900/10 sm:p-6">
       {shelves.map((row, idx) => (
         <Shelf key={idx} books={row} selectedId={selectedId} onSelect={onSelect} />
       ))}
@@ -78,7 +81,7 @@ function Shelf({
 }) {
   return (
     <div className="relative">
-      <div className="flex min-h-[220px] items-end justify-start gap-2 px-3">
+      <div className="flex min-h-[220px] items-end justify-start gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:overflow-visible">
         {books.length === 0 ? (
           <div className="flex h-44 w-full items-center justify-center text-sm text-stone-500">
             아직 심은 책이 없어요
@@ -110,12 +113,12 @@ function BookSpine({
 }) {
   const width = spineWidth(plant.book.total_pages)
   const kdcKey = (plant.book.kdc_code ?? '0').charAt(0)
-  const color = KDC_SPINE_COLOR[kdcKey] ?? 'bg-stone-500'
+  const color = KDC_SPINE_COLOR[kdcKey] ?? DEFAULT_SPINE_COLOR
   const clickable = !!onSelect
 
   return (
     <div
-      className={`group relative flex flex-col items-center ${clickable ? 'cursor-pointer' : ''}`}
+      className={`group relative flex shrink-0 flex-col items-center ${clickable ? 'cursor-pointer' : ''}`}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
       aria-pressed={clickable ? selected : undefined}
@@ -140,15 +143,15 @@ function BookSpine({
       </div>
 
       <div
-        className={`relative flex h-44 cursor-pointer items-center justify-center rounded-t-sm shadow-md transition ${color} ${
+        className={`relative flex h-44 cursor-pointer items-center justify-center rounded-t-sm shadow-md transition ${
           selected
             ? '-translate-y-2 ring-2 ring-amber-700 shadow-lg'
             : 'ring-1 ring-black/10 group-hover:-translate-y-1'
         }`}
-        style={{ width }}
+        style={{ width, backgroundColor: color }}
       >
         <span
-          className="select-none whitespace-nowrap text-[11px] font-medium tracking-wide text-white/95"
+          className="select-none whitespace-nowrap font-serif text-[11px] font-medium tracking-wide text-white/95"
           style={{ writingMode: 'vertical-rl' }}
         >
           {plant.book.title}

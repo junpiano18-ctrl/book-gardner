@@ -11,8 +11,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { getBookById } from '@/lib/books'
 import { getPlantByBookId, waterPlant as waterPlantLib } from '@/lib/garden'
 import { addQuote, getQuotesByBook, toggleQuoteFavorite } from '@/lib/quotes'
-import { getPlantByKdc } from '@/lib/plants'
-import type { Book, Plant, PlantStage, PlantWithBook, Quote } from '@/types'
+import { getPlantByKdc, getPlantInfo } from '@/lib/plants'
+import type { Book, Plant, PlantInfo, PlantStage, PlantWithBook, Quote } from '@/types'
 
 type SortMode = 'page' | 'recent' | 'oldest'
 
@@ -41,6 +41,7 @@ export default function BookDetailPage({
 
   const [book, setBook] = useState<Book | null>(null)
   const [plant, setPlant] = useState<Plant | null>(null)
+  const [plantInfo, setPlantInfo] = useState<PlantInfo | null>(null)
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -66,6 +67,11 @@ export default function BookDetailPage({
         setBook(b)
         setPlant(p)
         setQuotes(qs)
+        if (b) {
+          getPlantInfo(b.kdc_code).then((info) => {
+            if (mounted) setPlantInfo(info)
+          })
+        }
       })
       .catch((e) => {
         if (mounted) setError(e as Error)
@@ -142,7 +148,7 @@ export default function BookDetailPage({
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
         <Header activeKey="dogan" />
-        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
       </div>
@@ -153,7 +159,7 @@ export default function BookDetailPage({
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
       <Header activeKey="dogan" />
 
-      <main className="mx-auto w-full max-w-3xl px-6 py-8">
+      <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <div className="mb-4">
           <Link
             href="/library"
@@ -178,6 +184,7 @@ export default function BookDetailPage({
             <BookHeader
               book={book}
               plant={plant}
+              plantInfo={plantInfo}
               quoteCount={quotes.length}
               onAddQuote={plant ? () => setModalOpen(true) : undefined}
             />
@@ -238,11 +245,13 @@ export default function BookDetailPage({
 function BookHeader({
   book,
   plant,
+  plantInfo,
   quoteCount,
   onAddQuote,
 }: {
   book: Book
   plant: Plant | null
+  plantInfo: PlantInfo | null
   quoteCount: number
   onAddQuote?: () => void
 }) {
@@ -253,6 +262,13 @@ function BookHeader({
   const stage = plant?.stage
   const completedAt = plant?.completed_at
   const hasSvg = hasPlantIllustration(book.kdc_code)
+
+  const familyKor = plantInfo?.family_kor
+  const familySci = plantInfo?.family_sci
+  const genusKor = plantInfo?.genus_kor
+  const genusSci = plantInfo?.genus_sci
+  const hasForestData = !!(familySci || genusKor || genusSci)
+  const hasClassification = !!(familyKor || familySci || genusKor || genusSci)
 
   return (
     <section className="overflow-hidden rounded-3xl bg-white/80 shadow-sm ring-1 ring-amber-900/5">
@@ -319,6 +335,47 @@ function BookHeader({
 
           {sciName && (
             <p className="mt-2 text-[11px] italic text-stone-500">{sciName}</p>
+          )}
+
+          {hasClassification && (
+            <div className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2.5 ring-1 ring-amber-200/60">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+                🌿 식물 분류
+              </div>
+              <dl className="mt-1.5 grid grid-cols-[2rem_1fr] gap-x-3 gap-y-1 text-[12px]">
+                {(familyKor || familySci) && (
+                  <>
+                    <dt className="text-stone-500">과</dt>
+                    <dd className="text-stone-800">
+                      {familyKor}
+                      {familySci && (
+                        <span className="ml-1.5 italic text-stone-500">
+                          {familySci}
+                        </span>
+                      )}
+                    </dd>
+                  </>
+                )}
+                {(genusKor || genusSci) && (
+                  <>
+                    <dt className="text-stone-500">속</dt>
+                    <dd className="text-stone-800">
+                      {genusKor}
+                      {genusSci && (
+                        <span className="ml-1.5 italic text-stone-500">
+                          {genusSci}
+                        </span>
+                      )}
+                    </dd>
+                  </>
+                )}
+              </dl>
+              {hasForestData && (
+                <p className="mt-2 text-[10px] italic text-stone-500">
+                  출처: 산림청 국가표준식물목록 (공공데이터포털)
+                </p>
+              )}
+            </div>
           )}
 
           {plant && (

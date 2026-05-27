@@ -1,35 +1,27 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GardenView } from '@/components/Garden/GardenView'
-import { ShelfView } from '@/components/Garden/ShelfView'
 import { Header } from '@/components/ui/Header'
-import { WaterModal } from '@/components/ui/WaterModal'
+import { ShelfView } from '@/components/Garden/ShelfView'
+import {
+  PlantIllustration,
+  hasPlantIllustration,
+} from '@/components/Plant/PlantIllustration'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
 import type { PlantWithBook } from '@/types'
 
-type ViewMode = 'garden' | 'shelf'
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+const PREVIEW_LIMIT = 6
 
 export default function HomePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const {
-    plants,
-    loading: plantsLoading,
-    error: plantsError,
-    waterPlant,
-  } = useGarden(user?.id)
-  const { books, loading: booksLoading, error: booksError } = useBook(user?.id)
-
-  const [view, setView] = useState<ViewMode>('garden')
-  const [selectedPlant, setSelectedPlant] = useState<PlantWithBook | null>(null)
-  const [weekAgo] = useState(() => Date.now() - WEEK_MS)
+  const { plants, loading: plantsLoading } = useGarden(user?.id)
+  const { books, loading: booksLoading } = useBook(user?.id)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -46,17 +38,17 @@ export default function HomePage() {
       .filter((p): p is PlantWithBook => p !== null)
   }, [plants, books])
 
-  // 모달에 표시 중인 식물도 hook의 최신 상태로 동기화 (물주기 직후 진행률 반영)
-  const selectedPlantFresh = useMemo(() => {
-    if (!selectedPlant) return null
-    return plantsWithBooks.find((p) => p.id === selectedPlant.id) ?? selectedPlant
-  }, [selectedPlant, plantsWithBooks])
+  function handleSearch(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const q = query.trim()
+    router.push(q ? `/search?q=${encodeURIComponent(q)}` : '/search')
+  }
 
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-        <Header activeKey="garden" />
-        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+        <Header activeKey="home" />
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
       </div>
@@ -64,209 +56,144 @@ export default function HomePage() {
   }
 
   const dataLoading = plantsLoading || booksLoading
-  const dataError = plantsError ?? booksError
-
-  const totalPoints = plantsWithBooks.reduce((sum, p) => sum + p.growth_point, 0)
-  const bloomCount = plantsWithBooks.filter((p) => p.stage === 'bloom').length
-  const weeklyWaterings = plantsWithBooks.filter(
-    (p) => p.last_watered_at && new Date(p.last_watered_at).getTime() >= weekAgo
-  ).length
+  const preview = plantsWithBooks.slice(0, PREVIEW_LIMIT)
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-      <Header
-        activeKey="garden"
-        actions={<ViewToggle view={view} onChange={setView} />}
-      />
+      <Header activeKey="home" />
 
-      <main className="mx-auto flex w-full max-w-7xl gap-8 px-6 py-8">
-        <section className="flex-1 min-w-0">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-stone-800">
-              {view === 'garden' ? '🪴 내 정원' : '📚 나의 책장'}
-            </h1>
-            <p className="mt-1 text-sm text-stone-500">
-              {view === 'garden'
-                ? '읽는 만큼 자라는 식물을 가꿔보세요'
-                : '책등의 두께와 색이 책을 말해줍니다'}
-            </p>
-          </div>
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 pb-24 sm:px-6 sm:py-10 sm:pb-10">
+        {/* 히어로 */}
+        <section className="flex flex-col items-center text-center">
+          <p className="text-sm font-medium text-emerald-700">
+            안녕하세요, {user.nickname}님
+          </p>
+          <h1 className="mt-2 text-2xl font-bold text-stone-800 sm:text-3xl">
+            오늘도 한 줄, 그리고 한 뼘
+          </h1>
+          <p className="mt-2 text-sm text-stone-500">어떤 책을 심어볼까요?</p>
 
-          {dataError && (
-            <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
-              {dataError.message}
-            </div>
-          )}
-
-          {dataLoading ? (
-            <SkeletonGrid />
-          ) : plantsWithBooks.length === 0 ? (
-            <EmptyGarden />
-          ) : view === 'garden' ? (
-            <GardenView
-              plants={plantsWithBooks}
-              onWater={setSelectedPlant}
-              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+          <form
+            onSubmit={handleSearch}
+            className="mt-6 flex w-full max-w-[520px] items-center gap-2"
+          >
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="책 제목, 저자로 검색"
+              aria-label="책 검색"
+              className="h-12 flex-1 rounded-full border-2 border-emerald-400 bg-white px-5 text-sm text-stone-900 placeholder:text-stone-400 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
-          ) : (
-            <ShelfView
-              plants={plantsWithBooks}
-              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
-            />
-          )}
+            <button
+              type="submit"
+              className="h-12 shrink-0 rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+              검색
+            </button>
+          </form>
         </section>
 
-        <Sidebar
-          weeklyWaterings={weeklyWaterings}
-          totalPoints={totalPoints}
-          bloomCount={bloomCount}
-          plants={plantsWithBooks}
-        />
+        {/* 2단 섹션 */}
+        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          <PreviewSection
+            title="🌱 내 정원"
+            subtitle="자라는 중인 식물들"
+            href="/garden"
+            loading={dataLoading}
+            isEmpty={preview.length === 0}
+            emptyText="아직 심은 책이 없어요"
+          >
+            <div className="grid grid-cols-3 gap-3">
+              {preview.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => router.push(`/shelf?bookId=${p.book_id}`)}
+                  className="flex min-h-[88px] flex-col items-center rounded-xl bg-white/70 p-2 ring-1 ring-amber-900/5 transition hover:-translate-y-0.5 hover:shadow-sm"
+                >
+                  {hasPlantIllustration(p.kdc_code) ? (
+                    <PlantIllustration
+                      kdcCode={p.kdc_code}
+                      stage={p.stage}
+                      size={56}
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center text-3xl">
+                      🌸
+                    </div>
+                  )}
+                  <span className="mt-1 line-clamp-1 w-full text-center text-[11px] text-stone-600">
+                    {p.plant_name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </PreviewSection>
+
+          <PreviewSection
+            title="📚 내 책장"
+            subtitle="꽂아둔 책들"
+            href="/shelf"
+            loading={dataLoading}
+            isEmpty={preview.length === 0}
+            emptyText="아직 꽂은 책이 없어요"
+          >
+            <ShelfView
+              plants={preview}
+              booksPerShelf={PREVIEW_LIMIT}
+              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+            />
+          </PreviewSection>
+        </div>
       </main>
-
-      <WaterModal
-        plant={selectedPlantFresh}
-        onClose={() => setSelectedPlant(null)}
-        onWater={waterPlant}
-      />
     </div>
   )
 }
 
-function ViewToggle({
-  view,
-  onChange,
+function PreviewSection({
+  title,
+  subtitle,
+  href,
+  loading,
+  isEmpty,
+  emptyText,
+  children,
 }: {
-  view: ViewMode
-  onChange: (v: ViewMode) => void
+  title: string
+  subtitle: string
+  href: string
+  loading: boolean
+  isEmpty: boolean
+  emptyText: string
+  children: ReactNode
 }) {
   return (
-    <div className="inline-flex rounded-full bg-stone-200/70 p-1 text-sm">
-      <button
-        onClick={() => onChange('garden')}
-        className={`rounded-full px-3 py-1.5 transition ${
-          view === 'garden'
-            ? 'bg-white text-stone-900 shadow-sm'
-            : 'text-stone-600 hover:text-stone-800'
-        }`}
-      >
-        🪴 정원
-      </button>
-      <button
-        onClick={() => onChange('shelf')}
-        className={`rounded-full px-3 py-1.5 transition ${
-          view === 'shelf'
-            ? 'bg-white text-stone-900 shadow-sm'
-            : 'text-stone-600 hover:text-stone-800'
-        }`}
-      >
-        📚 책장
-      </button>
-    </div>
-  )
-}
-
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="flex flex-col items-center rounded-2xl bg-white/60 p-4 shadow-sm ring-1 ring-amber-900/5"
+    <section className="rounded-2xl bg-white/60 p-4 shadow-sm ring-1 ring-amber-900/5 sm:p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-stone-800">{title}</h2>
+          <p className="truncate text-xs text-stone-500">{subtitle}</p>
+        </div>
+        <Link
+          href={href}
+          className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-200"
         >
-          <div className="h-24 w-16 animate-pulse rounded-lg bg-stone-200" />
-          <div className="mt-4 h-3 w-20 animate-pulse rounded bg-stone-200" />
-          <div className="mt-2 h-2.5 w-28 animate-pulse rounded bg-stone-200/80" />
-          <div className="mt-4 h-1.5 w-full animate-pulse rounded-full bg-stone-200" />
+          전체보기 →
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center rounded-xl bg-white/40 px-4 py-10 text-sm text-stone-400">
+          불러오는 중...
         </div>
-      ))}
-    </div>
-  )
-}
-
-function EmptyGarden() {
-  return (
-    <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-16 text-center">
-      <div className="text-5xl">🪴</div>
-      <h2 className="mt-3 text-lg font-semibold text-stone-700">
-        아직 심은 책이 없어요
-      </h2>
-      <p className="mt-1 text-sm text-stone-500">
-        읽고 싶은 책을 찾아 첫 화분을 만들어보세요
-      </p>
-      <Link
-        href="/search"
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
-      >
-        🔎 책 검색으로 가기
-      </Link>
-    </div>
-  )
-}
-
-function Sidebar({
-  weeklyWaterings,
-  totalPoints,
-  bloomCount,
-  plants,
-}: {
-  weeklyWaterings: number
-  totalPoints: number
-  bloomCount: number
-  plants: PlantWithBook[]
-}) {
-  const recent = [...plants]
-    .filter((p) => p.last_watered_at)
-    .sort((a, b) =>
-      (b.last_watered_at ?? '').localeCompare(a.last_watered_at ?? '')
-    )
-    .slice(0, 3)
-
-  return (
-    <aside className="hidden w-72 shrink-0 space-y-5 lg:block">
-      <Card title="이번주 통계">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <Stat label="물주기" value={`${weeklyWaterings}회`} />
-          <Stat label="총 포인트" value={`${totalPoints}`} />
-          <Stat label="개화" value={`${bloomCount}`} />
+      ) : isEmpty ? (
+        <div className="flex flex-col items-center rounded-xl border-2 border-dashed border-stone-300 bg-white/40 px-4 py-8 text-center text-sm text-stone-500">
+          {emptyText}
         </div>
-      </Card>
-
-      <Card title="최근 활동">
-        {recent.length === 0 ? (
-          <p className="text-xs text-stone-500">아직 활동이 없어요</p>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {recent.map((p) => (
-              <li key={p.id} className="flex items-center gap-2">
-                <span>💧</span>
-                <span className="flex-1 truncate text-stone-700">
-                  {p.book.title}
-                </span>
-                <span className="text-[11px] text-stone-400">+10pt</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-    </aside>
-  )
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-amber-900/5">
-      <h3 className="mb-3 text-sm font-semibold text-stone-700">{title}</h3>
-      {children}
+      ) : (
+        children
+      )}
     </section>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-stone-100 px-2 py-2">
-      <div className="text-base font-bold text-stone-800">{value}</div>
-      <div className="mt-0.5 text-[11px] text-stone-500">{label}</div>
-    </div>
   )
 }

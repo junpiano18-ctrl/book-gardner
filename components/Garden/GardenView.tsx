@@ -36,7 +36,7 @@ export function GardenView({
   const slots = Array.from({ length: Math.max(totalSlots, plants.length) }, (_, i) => plants[i] ?? null)
 
   return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {slots.map((plant, i) =>
         plant ? (
           <PotCard key={plant.id} plant={plant} onWater={onWater} onSelect={onSelect} />

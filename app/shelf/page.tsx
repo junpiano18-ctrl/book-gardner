@@ -33,7 +33,7 @@ export default function ShelfPage() {
           style={{ backgroundColor: '#fdf6ee' }}
         >
           <Header activeKey="shelf" />
-          <main className="mx-auto w-full max-w-5xl px-6 py-10 text-center text-stone-500">
+          <main className="mx-auto w-full max-w-5xl px-4 py-10 text-center text-stone-500 sm:px-6">
             불러오는 중...
           </main>
         </div>
@@ -178,7 +178,7 @@ function ShelfPageInner() {
         style={{ backgroundColor: '#fdf6ee' }}
       >
         <Header activeKey="shelf" />
-        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
       </div>
@@ -192,7 +192,7 @@ function ShelfPageInner() {
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
       <Header activeKey="shelf" />
 
-      <main className="mx-auto w-full max-w-5xl px-6 py-8">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <header className="mb-5">
           <h1 className="text-2xl font-bold text-stone-800">📚 나의 책장</h1>
           <p className="mt-1 text-sm text-stone-500">
@@ -339,7 +339,7 @@ function QuoteSlider({
         type="button"
         onClick={() => scroll('prev')}
         aria-label="이전 문장"
-        className="absolute left-0 top-1/2 z-10 flex h-9 w-9 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white"
+        className="absolute left-0 top-1/2 z-10 hidden h-11 w-11 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white sm:flex"
       >
         ‹
       </button>
@@ -347,14 +347,14 @@ function QuoteSlider({
         type="button"
         onClick={() => scroll('next')}
         aria-label="다음 문장"
-        className="absolute right-0 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 translate-x-1 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white"
+        className="absolute right-0 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 translate-x-1 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white sm:flex"
       >
         ›
       </button>
 
       <div
         ref={scrollerRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-10 pb-2 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pb-2 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:px-10"
       >
         {quotes.map((q) => (
           <QuoteCard key={q.id} quote={q} onToggleFavorite={onToggleFavorite} />
@@ -374,9 +374,9 @@ function QuoteCard({
   return (
     <article
       data-quote-card
-      className="relative shrink-0 snap-center rounded-2xl bg-amber-50 px-7 py-6 shadow-md ring-1 ring-amber-200/80"
+      className="relative shrink-0 snap-center rounded-2xl bg-amber-50 px-5 py-5 shadow-md ring-1 ring-amber-200/80 sm:px-7 sm:py-6"
       style={{
-        width: 'min(320px, 80vw)',
+        width: 'min(320px, 85vw)',
         backgroundImage:
           'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.18), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.5), transparent 60%)',
       }}

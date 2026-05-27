@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/ui/Header'
 import { BookSearchResult } from '@/components/Book/BookSearchResult'
 import { useAuth } from '@/hooks/useAuth'
@@ -12,18 +12,47 @@ import { normalizeIsbns } from '@/lib/books'
 import type { KakaoBook } from '@/types'
 
 export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
+          <Header activeKey="search" />
+          <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
+            불러오는 중...
+          </main>
+        </div>
+      }
+    >
+      <SearchPageInner />
+    </Suspense>
+  )
+}
+
+function SearchPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const { books, searchResults, searching, searchBooks, addBook, error } = useBook(user?.id)
   const { addPlant } = useGarden(user?.id)
 
-  const [query, setQuery] = useState('')
+  const initialQuery = searchParams.get('q') ?? ''
+  const [query, setQuery] = useState(initialQuery)
   const [plantingIsbn, setPlantingIsbn] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const autoSearchedRef = useRef(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
   }, [authLoading, user, router])
+
+  // 대시보드에서 ?q= 로 넘어온 검색어는 한 번 자동 실행
+  useEffect(() => {
+    if (autoSearchedRef.current || !user) return
+    const q = initialQuery.trim()
+    if (!q) return
+    autoSearchedRef.current = true
+    searchBooks(q)
+  }, [user, initialQuery, searchBooks])
 
   const plantedIsbns = new Set<string>(
     books.flatMap((b) => normalizeIsbns(b.isbn))
@@ -84,7 +113,7 @@ export default function SearchPage() {
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
         <Header activeKey="search" />
-        <main className="mx-auto w-full max-w-3xl px-6 py-10 text-center text-stone-500">
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
       </div>
@@ -95,7 +124,7 @@ export default function SearchPage() {
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
       <Header activeKey="search" />
 
-      <main className="mx-auto w-full max-w-4xl px-6 py-8">
+      <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-stone-800">📖 책 검색</h1>
           <p className="mt-1 text-sm text-stone-500">
