@@ -57,9 +57,11 @@ export async function GET(request: Request) {
     return Response.json({ error: 'NL_API_KEY is not set' }, { status: 500 })
   }
 
+  // category=도서 로 음악자료/기사 등 제외, 책만 반환
   const params = new URLSearchParams({
     srchTarget: 'total',
     kwd: query,
+    category: '도서',
     pageNum: '1',
     pageSize: '10',
     key,

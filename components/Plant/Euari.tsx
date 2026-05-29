@@ -23,7 +23,7 @@ export function Euari({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`으아리 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="7" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

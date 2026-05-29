@@ -37,9 +37,12 @@ export function BookSearchResult({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {results.map((book) => {
+      {results.map((book, index) => {
         const isbns = normalizeIsbns(book.isbn)
-        const key = isbns.join('-') || `${book.title}-${book.datetime}`
+        // NL API 결과는 ISBN 이 비어있는 경우가 많고 (음반/구간 등) 같은 제목 책이 여러
+        // 판본으로 섞여 들어와 키 충돌이 자주 발생 — 항상 index 를 섞어 고유성 보장
+        const isbnKey = isbns.join('-')
+        const key = isbnKey ? `${isbnKey}-${index}` : `nl-${index}`
         const alreadyPlanted = isbns.some((i) => plantedIsbns.has(i))
         const kdcCode = book.kdc_code ?? '8'
         const isPlanting = plantingIsbn !== null && isbns.includes(plantingIsbn)

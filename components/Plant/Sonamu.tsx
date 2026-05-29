@@ -22,7 +22,7 @@ export function Sonamu({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`소나무 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="9" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

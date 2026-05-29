@@ -22,7 +22,7 @@ export function Gujulcho({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`구절초 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="4" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

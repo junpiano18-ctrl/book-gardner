@@ -1,22 +1,8 @@
+import { Pot, Seed, type PlantSvgProps } from './_shared'
 import type { PlantStage } from '@/types'
 
-interface HalmiggotProps {
-  stage: PlantStage
-  size?: number
-  className?: string
-}
-
 const COLOR = {
-  potBody: '#c97c5d',
-  potShade: '#a86a4a',
-  potHighlight: '#e89476',
-  rimShade: '#7a4a2f',
-  soil: '#3e2818',
-  soilSpeck: '#5a3923',
-  seed: '#7a4a23',
-  seedHighlight: '#a87447',
   stem: '#4d8a3a',
-  stemLight: '#7bb061',
   leaf: '#6db84a',
   leafHighlight: '#a8dc85',
   flowerBack: '#a987c9',
@@ -27,7 +13,7 @@ const COLOR = {
   fuzz: '#9bb78a',
 }
 
-export function Halmiggot({ stage, size = 140, className }: HalmiggotProps) {
+export function Halmiggot({ stage, size = 140, className }: PlantSvgProps) {
   return (
     <svg
       viewBox="0 0 120 140"
@@ -38,58 +24,9 @@ export function Halmiggot({ stage, size = 140, className }: HalmiggotProps) {
       aria-label={`할미꽃 ${stage} 단계`}
     >
       {stage !== 'seed' && <Plant stage={stage} />}
-      <Pot />
+      <Pot kdcCode="1" />
       {stage === 'seed' && <Seed />}
     </svg>
-  )
-}
-
-function Pot() {
-  return (
-    <g>
-      {/* ground shadow */}
-      <ellipse cx="60" cy="135" rx="36" ry="3" fill="#000" opacity="0.08" />
-
-      {/* pot body (trapezoid) */}
-      <path
-        d="M 30 102 L 90 102 L 82 132 L 38 132 Z"
-        fill={COLOR.potBody}
-      />
-
-      {/* body highlight */}
-      <path
-        d="M 33 104 L 36 130 L 39 130 L 36 104 Z"
-        fill={COLOR.potHighlight}
-        opacity="0.55"
-      />
-
-      {/* pot rim */}
-      <ellipse cx="60" cy="102" rx="30" ry="5.5" fill={COLOR.potShade} />
-
-      {/* rim inner shadow */}
-      <ellipse cx="60" cy="102" rx="27" ry="4.2" fill={COLOR.rimShade} />
-
-      {/* soil */}
-      <ellipse cx="60" cy="101.5" rx="25" ry="3.4" fill={COLOR.soil} />
-
-      {/* soil specks */}
-      <circle cx="50" cy="101" r="0.9" fill={COLOR.soilSpeck} opacity="0.7" />
-      <circle cx="66" cy="102" r="0.7" fill={COLOR.soilSpeck} opacity="0.7" />
-      <circle cx="58" cy="102.5" r="0.6" fill={COLOR.soilSpeck} opacity="0.7" />
-    </g>
-  )
-}
-
-function Seed() {
-  return (
-    <g>
-      {/* seed body */}
-      <ellipse cx="60" cy="98" rx="6.5" ry="5.5" fill={COLOR.seed} />
-      {/* seed highlight */}
-      <ellipse cx="57.5" cy="95.5" rx="2.6" ry="1.5" fill={COLOR.seedHighlight} />
-      {/* base shadow */}
-      <ellipse cx="60" cy="101" rx="5.5" ry="1.2" fill="#000" opacity="0.15" />
-    </g>
   )
 }
 

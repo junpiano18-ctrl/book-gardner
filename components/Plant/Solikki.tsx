@@ -19,7 +19,7 @@ export function Solikki({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`솔이끼 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="0" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

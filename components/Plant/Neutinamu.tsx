@@ -19,7 +19,7 @@ export function Neutinamu({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`느티나무 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="3" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

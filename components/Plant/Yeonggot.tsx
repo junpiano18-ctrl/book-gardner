@@ -24,7 +24,7 @@ export function Yeonggot({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`연꽃 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="2" />
       {stage === 'seed' && <Seed />}
       {stage !== 'seed' && (
         <>

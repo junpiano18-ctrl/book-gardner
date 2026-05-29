@@ -20,7 +20,7 @@ export function Daenamu({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`대나무 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="5" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}

@@ -1,5 +1,6 @@
 'use client'
 
+import { getKdcColor } from '@/lib/kdc-colors'
 import type { PlantStage, PlantWithBook } from '@/types'
 
 const STAGE_EMOJI: Record<PlantStage, string> = {
@@ -15,22 +16,6 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   growing: '성장',
   bloom: '개화',
 }
-
-// 톤다운한 책등 색상 — KDC별 매핑 (6색 팔레트 순환)
-const KDC_SPINE_COLOR: Record<string, string> = {
-  '0': '#6a6a8a',
-  '1': '#8a6a7a',
-  '2': '#5a7a6a',
-  '3': '#a07850',
-  '4': '#7a8a5a',
-  '5': '#8a5a4a',
-  '6': '#8a6a7a',
-  '7': '#5a7a6a',
-  '8': '#a07850',
-  '9': '#7a8a5a',
-}
-
-const DEFAULT_SPINE_COLOR = '#6a6a8a'
 
 const MIN_SPINE_W = 28
 const MAX_SPINE_W = 64
@@ -112,8 +97,7 @@ function BookSpine({
   onSelect?: (plant: PlantWithBook) => void
 }) {
   const width = spineWidth(plant.book.total_pages)
-  const kdcKey = (plant.book.kdc_code ?? '0').charAt(0)
-  const color = KDC_SPINE_COLOR[kdcKey] ?? DEFAULT_SPINE_COLOR
+  const color = getKdcColor(plant.book.kdc_code)
   const clickable = !!onSelect
 
   return (

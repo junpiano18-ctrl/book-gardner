@@ -24,7 +24,7 @@ export function Jindalrae({ stage, size = 140, className }: PlantSvgProps) {
       role="img"
       aria-label={`진달래 ${stage} 단계`}
     >
-      <Pot />
+      <Pot kdcCode="6" />
       {stage === 'seed' && <Seed />}
       {stage === 'sprout' && <Sprout />}
       {stage === 'growing' && <Growing />}
