@@ -1,8 +1,13 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { getQuotesByBook } from '@/lib/quotes'
+import {
+  WATERING_POINTS,
+  stageProgressPercent,
+  watersToNextStage,
+} from '@/lib/garden'
 import type { Plant, PlantStage, PlantWithBook, Quote } from '@/types'
 
 const STAGE_EMOJI: Record<PlantStage, string> = {
@@ -47,13 +52,37 @@ const ENCOURAGEMENT: Record<Exclude<PlantStage, 'bloom'>, {
   },
 }
 
+function Sparkle({
+  pos,
+  delay,
+  size = 'text-lg',
+}: {
+  pos: string
+  delay: number
+  size?: string
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute text-amber-400 ${size} ${pos}`}
+      style={{
+        animation: 'sparkle-burst 900ms ease-out forwards',
+        animationDelay: `${delay}ms`,
+      }}
+    >
+      ✨
+    </span>
+  )
+}
+
 function getEncouragement(stage: PlantStage, growthPoint: number): string {
   if (stage === 'bloom') return BLOOM_MESSAGE
-  const remaining = Math.max(1, Math.ceil((100 - growthPoint) / 10))
+  const remaining = watersToNextStage(stage, growthPoint)
   const set = ENCOURAGEMENT[stage]
-  if (remaining >= 8) return set.far
-  if (remaining >= 5) return set.mid
-  if (remaining >= 2) return set.close
+  // 단계당 3~4회 물주기 기준: 4↑ far, 3 mid, 2 close, 1 last
+  if (remaining >= 4) return set.far
+  if (remaining === 3) return set.mid
+  if (remaining === 2) return set.close
   return set.last
 }
 
@@ -88,6 +117,26 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
   const [completed, setCompleted] = useState(false)
   const [entered, setEntered] = useState(false)
 
+  // 애니메이션 상태
+  const [animKey, setAnimKey] = useState(0)  // 같은 애니메이션 재실행을 위한 키
+  const [dropping, setDropping] = useState(false)
+  const [bouncing, setBouncing] = useState(false)
+  const [pointFloat, setPointFloat] = useState(false)
+  const [sparkling, setSparkling] = useState(false)
+  const animTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
+
+  function scheduleAnim(fn: () => void, delay: number) {
+    const id = setTimeout(fn, delay)
+    animTimers.current.push(id)
+  }
+
+  useEffect(() => {
+    return () => {
+      animTimers.current.forEach(clearTimeout)
+      animTimers.current = []
+    }
+  }, [])
+
   const isDogamMode = !!plant.completed_at
   const [quoteCount, setQuoteCount] = useState<number | null>(null)
 
@@ -119,10 +168,9 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [submitting, onClose])
 
-  const progress = plant.growth_point % 100
+  const progress = stageProgressPercent(plant.stage, plant.growth_point)
   const encouragement = getEncouragement(plant.stage, plant.growth_point)
-  const remaining =
-    plant.stage === 'bloom' ? 0 : Math.max(1, Math.ceil((100 - plant.growth_point) / 10))
+  const remaining = watersToNextStage(plant.stage, plant.growth_point)
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -139,38 +187,81 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
 
     setSubmitting(true)
     setError(null)
+
+    // 0ms: 물방울 낙하 시작 (서버 호출과 병렬, 최소 550ms 보장)
+    setAnimKey((k) => k + 1)
+    setDropping(true)
+
+    let result: Awaited<ReturnType<typeof onWater>> | null = null
     try {
-      const result = await onWater({
-        plantId: plant.id,
-        bookId: plant.book_id,
-        content: trimmed,
-        pageNumber: parsedPage,
-      })
-
-      if (!result) {
-        setError('물주기에 실패했어요')
-        return
-      }
-
-      const justCompleted = !plant.completed_at && !!result.plant.completed_at
-
-      if (isDogamMode) {
-        setQuoteCount((c) => (c == null ? 1 : c + 1))
-        setContent('')
-        setPageInput('')
-      } else if (justCompleted) {
-        setCompleted(true)
-      } else if (result.plant.stage !== plant.stage) {
-        setPromotion(result.plant.stage)
-        setTimeout(onClose, 1800)
-      } else {
-        onClose()
-      }
+      const [r] = await Promise.all([
+        onWater({
+          plantId: plant.id,
+          bookId: plant.book_id,
+          content: trimmed,
+          pageNumber: parsedPage,
+        }),
+        new Promise((resolve) => setTimeout(resolve, 550)),
+      ])
+      result = r
     } catch (e) {
+      setDropping(false)
       setError((e as Error).message ?? '물주기에 실패했어요')
-    } finally {
       setSubmitting(false)
+      return
     }
+
+    if (!result) {
+      setDropping(false)
+      setError('물주기에 실패했어요')
+      setSubmitting(false)
+      return
+    }
+
+    const newPlant = result.plant
+    const justCompleted = !plant.completed_at && !!newPlant.completed_at
+    const stageChanged = !isDogamMode && newPlant.stage !== plant.stage
+
+    // 물방울 착지 → 식물 통통 + 게이지 차오름 + +10pt 떠오름
+    setDropping(false)
+    setBouncing(true)
+    setPointFloat(true)
+
+    // 600ms: 통통 종료
+    scheduleAnim(() => setBouncing(false), 600)
+    // 900ms: +10pt 소멸
+    scheduleAnim(() => setPointFloat(false), 900)
+
+    if (isDogamMode) {
+      setQuoteCount((c) => (c == null ? 1 : c + 1))
+      setContent('')
+      setPageInput('')
+      // 도감 모드는 모달 유지. submitting 해제만.
+      scheduleAnim(() => setSubmitting(false), 700)
+      return
+    }
+
+    // 단계 상승 또는 완독: 스파클 폭발 후 축하 화면
+    if (stageChanged || justCompleted) {
+      scheduleAnim(() => setSparkling(true), 300)
+      scheduleAnim(() => {
+        setSparkling(false)
+        if (justCompleted) {
+          setCompleted(true)
+        } else {
+          setPromotion(newPlant.stage)
+          scheduleAnim(onClose, 1800)
+        }
+        setSubmitting(false)
+      }, 1000)
+      return
+    }
+
+    // 일반 물주기: 애니메이션 후 닫기
+    scheduleAnim(() => {
+      onClose()
+      setSubmitting(false)
+    }, 1100)
   }
 
   return (
@@ -197,9 +288,67 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
           <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-stone-300" />
 
           <div className="mb-5 flex flex-col items-center text-center">
-            <div className="text-7xl leading-none" aria-hidden>
-              {STAGE_EMOJI[plant.stage]}
+            <div className="relative h-24 w-24">
+              {/* 물방울 낙하 */}
+              {dropping && (
+                <span
+                  key={`drop-${animKey}`}
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 top-0 text-3xl"
+                  style={{ animation: 'water-drop 700ms ease-in forwards' }}
+                >
+                  💧
+                </span>
+              )}
+
+              {/* +10pt 떠오름 */}
+              {pointFloat && (
+                <span
+                  key={`pt-${animKey}`}
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 -top-1 text-sm font-bold text-emerald-600"
+                  style={{ animation: 'float-up 900ms ease-out forwards' }}
+                >
+                  +{WATERING_POINTS}pt
+                </span>
+              )}
+
+              {/* 식물 본체 + 통통 튐 */}
+              <div
+                key={`plant-${animKey}-${bouncing ? 1 : 0}`}
+                className="flex h-full w-full items-center justify-center text-7xl leading-none"
+                style={
+                  bouncing
+                    ? { animation: 'plant-bounce 600ms cubic-bezier(.34,1.56,.64,1)' }
+                    : undefined
+                }
+                aria-hidden
+              >
+                {STAGE_EMOJI[plant.stage]}
+              </div>
+
+              {/* 물방울이 닿을 때의 잔물결 */}
+              {bouncing && (
+                <span
+                  key={`ripple-${animKey}`}
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 top-[80%] h-6 w-12 rounded-full border-2 border-sky-300/60"
+                  style={{ animation: 'ripple-ring 700ms ease-out forwards' }}
+                />
+              )}
+
+              {/* 단계 상승 / 완독 시 스파클 폭발 */}
+              {sparkling && (
+                <>
+                  <Sparkle pos="-top-2 left-2" delay={0} />
+                  <Sparkle pos="-top-1 right-2" delay={90} />
+                  <Sparkle pos="top-6 -left-3" delay={150} />
+                  <Sparkle pos="top-6 -right-3" delay={210} />
+                  <Sparkle pos="bottom-1 left-1/2 -translate-x-1/2" delay={300} />
+                </>
+              )}
             </div>
+
             <div className="mt-3 text-xl font-bold text-stone-800">
               {plant.plant_name}
             </div>
@@ -239,7 +388,7 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-[width] duration-700 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -336,7 +485,14 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
 
         {promotion && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#fdf6ee]/95 px-6 text-center backdrop-blur animate-in fade-in">
-            <div className="text-8xl">{STAGE_EMOJI[promotion]}</div>
+            <div className="relative">
+              <div className="text-8xl">{STAGE_EMOJI[promotion]}</div>
+              <Sparkle pos="-top-2 -left-4" delay={0} size="text-2xl" />
+              <Sparkle pos="-top-4 right-0" delay={120} size="text-2xl" />
+              <Sparkle pos="top-1/2 -left-8" delay={240} size="text-xl" />
+              <Sparkle pos="top-1/2 -right-8" delay={360} size="text-xl" />
+              <Sparkle pos="-bottom-2 left-1/2 -translate-x-1/2" delay={480} size="text-2xl" />
+            </div>
             <div className="mt-4 text-2xl font-bold text-stone-800">
               축하해요! {STAGE_LABEL[promotion]} 단계예요
             </div>
@@ -348,7 +504,14 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
 
         {completed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#fdf6ee]/95 px-6 text-center backdrop-blur animate-in fade-in">
-            <div className="text-8xl">📖</div>
+            <div className="relative">
+              <div className="text-8xl">📖</div>
+              <Sparkle pos="-top-2 -left-4" delay={0} size="text-2xl" />
+              <Sparkle pos="-top-4 right-0" delay={120} size="text-2xl" />
+              <Sparkle pos="top-1/2 -left-8" delay={240} size="text-xl" />
+              <Sparkle pos="top-1/2 -right-8" delay={360} size="text-xl" />
+              <Sparkle pos="-bottom-2 left-1/2 -translate-x-1/2" delay={480} size="text-2xl" />
+            </div>
             <div className="mt-4 text-2xl font-bold text-stone-800">
               완독 축하해요!
             </div>

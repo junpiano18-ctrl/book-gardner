@@ -1,5 +1,45 @@
 import { supabase } from './supabase'
-import type { Plant, Quote } from '@/types'
+import type { Plant, PlantStage, Quote } from '@/types'
+
+// ============================================================
+// 성장 임계값 — DB water_plant() 트리거와 반드시 일치해야 함
+// 물주기 1회 = +10pt · 10회 누적 시 bloom 도달 (= 완독)
+// seed[0,30) → sprout[30,60) → growing[60,100) → bloom[100,+)
+// ============================================================
+export const WATERING_POINTS = 10
+export const POINTS_TO_BLOOM = 100
+export const TOTAL_WATERS_TO_BLOOM = POINTS_TO_BLOOM / WATERING_POINTS
+
+export const STAGE_THRESHOLDS: Record<
+  PlantStage,
+  { start: number; end: number }
+> = {
+  seed: { start: 0, end: 30 },
+  sprout: { start: 30, end: 60 },
+  growing: { start: 60, end: 100 },
+  bloom: { start: 100, end: 100 },
+}
+
+// 현재 단계 내 진행률 (0~100)
+export function stageProgressPercent(
+  stage: PlantStage,
+  growthPoint: number
+): number {
+  const { start, end } = STAGE_THRESHOLDS[stage]
+  if (stage === 'bloom' || end <= start) return 100
+  const ratio = (growthPoint - start) / (end - start)
+  return Math.min(100, Math.max(0, Math.round(ratio * 100)))
+}
+
+// 다음 단계까지 남은 물주기 횟수 (최소 1)
+export function watersToNextStage(
+  stage: PlantStage,
+  growthPoint: number
+): number {
+  if (stage === 'bloom') return 0
+  const remainingPts = STAGE_THRESHOLDS[stage].end - growthPoint
+  return Math.max(1, Math.ceil(remainingPts / WATERING_POINTS))
+}
 
 export interface WaterPlantInput {
   userId: string
