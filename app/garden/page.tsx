@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { GardenView } from '@/components/Garden/GardenView'
 import { ShelfView } from '@/components/Garden/ShelfView'
+import { ReadingMap } from '@/components/Garden/ReadingMap'
 import { Header } from '@/components/ui/Header'
 import { WaterModal } from '@/components/ui/WaterModal'
 import { useAuth } from '@/hooks/useAuth'
@@ -120,6 +121,12 @@ export default function GardenPage() {
               plants={plantsWithBooks}
               onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
             />
+          )}
+
+          {!dataLoading && books.length > 0 && (
+            <div className="mt-6">
+              <ReadingMap books={books} />
+            </div>
           )}
         </section>
 

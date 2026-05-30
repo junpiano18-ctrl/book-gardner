@@ -86,12 +86,19 @@ export function Pot({ kdcCode }: { kdcCode?: string } = {}) {
   )
 }
 
+// 갓 심은 자리 — 봉긋한 흙 위로 막 터지려는 작은 새싹 점
 export function Seed() {
   return (
     <g>
-      <ellipse cx="60" cy="98" rx="6.5" ry="5.5" fill="#7a4a23" />
-      <ellipse cx="57.5" cy="95.5" rx="2.6" ry="1.5" fill="#a87447" />
-      <ellipse cx="60" cy="101" rx="5.5" ry="1.2" fill="#000" opacity="0.15" />
+      {/* 흙 봉긋 (살짝 솟은) */}
+      <ellipse cx="60" cy="100" rx="9" ry="3" fill="#3e2818" />
+      <ellipse cx="60" cy="99" rx="6.5" ry="1.8" fill="#5a3923" opacity="0.7" />
+      {/* 작은 연두 새싹 점 (터지려는 느낌) */}
+      <ellipse cx="60" cy="96.5" rx="1.6" ry="2.2" fill="#7eb050" />
+      <ellipse cx="59.4" cy="95.5" rx="0.8" ry="1.2" fill="#a8dc85" opacity="0.85" />
+      {/* 아주 작은 떡잎 갈라짐 (좌우 살짝) */}
+      <ellipse cx="58.4" cy="96.6" rx="1.1" ry="0.7" fill="#7eb050" opacity="0.75" transform="rotate(-22 58.4 96.6)" />
+      <ellipse cx="61.6" cy="96.6" rx="1.1" ry="0.7" fill="#7eb050" opacity="0.75" transform="rotate(22 61.6 96.6)" />
     </g>
   )
 }

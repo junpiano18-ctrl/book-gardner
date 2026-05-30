@@ -17,9 +17,9 @@ const STAGE_LABEL: Record<PlantStage, string> = {
   bloom: '개화',
 }
 
-const MIN_SPINE_W = 28
-const MAX_SPINE_W = 64
-const REFERENCE_PAGES = 600
+const MIN_SPINE_W = 22
+const MAX_SPINE_W = 68
+const REFERENCE_PAGES = 500
 
 const MIN_SPINE_H = 95
 const MAX_SPINE_H = 130
@@ -61,17 +61,25 @@ interface ShelfViewProps {
   onSelect?: (plant: PlantWithBook) => void
 }
 
+// 책을 균등하게 여러 책장에 분배 — 마지막 줄에 책이 적게 남지 않도록
+function distributeShelves<T>(items: T[], maxPerShelf: number): T[][] {
+  if (items.length === 0) return [[]]
+  const shelfCount = Math.ceil(items.length / maxPerShelf)
+  const perShelf = Math.ceil(items.length / shelfCount)
+  const shelves: T[][] = []
+  for (let i = 0; i < items.length; i += perShelf) {
+    shelves.push(items.slice(i, i + perShelf))
+  }
+  return shelves
+}
+
 export function ShelfView({
   plants,
-  booksPerShelf = 8,
+  booksPerShelf = 14,
   selectedId,
   onSelect,
 }: ShelfViewProps) {
-  const shelves: PlantWithBook[][] = []
-  for (let i = 0; i < plants.length; i += booksPerShelf) {
-    shelves.push(plants.slice(i, i + booksPerShelf))
-  }
-  if (shelves.length === 0) shelves.push([])
+  const shelves = distributeShelves(plants, booksPerShelf)
 
   return (
     <div
@@ -96,7 +104,7 @@ function Shelf({
 }) {
   return (
     <div className="relative">
-      <div className="flex min-h-[160px] items-end justify-start gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:overflow-visible">
+      <div className="flex min-h-[160px] items-end justify-start gap-1 overflow-x-auto px-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:justify-between sm:overflow-visible">
         {books.length === 0 ? (
           <div className="flex h-32 w-full items-center justify-center text-sm text-stone-700/70">
             아직 심은 책이 없어요
@@ -141,12 +149,12 @@ function BookSpine({
     ? '0 0 0 2px #b45309' // amber-700
     : '0 0 0 1px rgba(0,0,0,0.12)'
   const drop = selected
-    ? '0 5px 10px rgba(0,0,0,0.28)'
-    : '0 2px 4px rgba(0,0,0,0.2)'
+    ? '0 6px 12px rgba(0,0,0,0.32)'
+    : '0 3px 6px rgba(0,0,0,0.28)'
   const spineShadow = [
     ring,
-    'inset 1.5px 0 0 rgba(255,255,255,0.18)',
-    'inset -1.5px 0 0 rgba(0,0,0,0.25)',
+    'inset 1.5px 0 0 rgba(255,255,255,0.28)',
+    'inset -1.5px 0 0 rgba(0,0,0,0.35)',
     drop,
   ].join(', ')
 
@@ -169,14 +177,6 @@ function BookSpine({
       }
     >
       <div
-        className="-mb-1 text-2xl"
-        aria-label={STAGE_LABEL[plant.stage]}
-        role="img"
-      >
-        {STAGE_EMOJI[plant.stage]}
-      </div>
-
-      <div
         className={`relative flex cursor-pointer items-center justify-center overflow-hidden rounded-t-sm transition ${
           selected ? '-translate-y-2' : 'group-hover:-translate-y-1'
         }`}
@@ -190,16 +190,16 @@ function BookSpine({
         {/* 상단 양각 띠 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-[6px] h-px bg-white/30"
+          className="pointer-events-none absolute inset-x-0 top-[6px] h-px bg-white/45"
         />
         {/* 하단 음각 띠 */}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-[6px] h-px bg-black/35"
+          className="pointer-events-none absolute inset-x-0 bottom-[6px] h-px bg-black/45"
         />
         <span
           className="select-none whitespace-nowrap font-serif text-[11px] font-medium leading-[13px] text-white/95"
-          style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
+          style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
         >
           {displayTitle}
         </span>

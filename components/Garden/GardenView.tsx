@@ -37,14 +37,16 @@ const SKY_BG: Record<SkyTheme, string> = {
   night: 'linear-gradient(to bottom, #0c1730 0%, #1a2348 45%, #2a3358 100%)',
 }
 
+// 하늘 영역이 0~38% 로 좁아진 만큼 해/달 위치 재조정
+// dawn/sunset 은 산 능선 근처(지평선)에 낮게 걸리도록
 const CELESTIAL: Record<
   SkyTheme,
   { color: string; glow: string; x: string; y: string }
 > = {
-  dawn: { color: '#ffd28a', glow: '255,210,138', x: '20%', y: '58%' },
-  day: { color: '#ffe8a0', glow: '255,232,160', x: '78%', y: '14%' },
-  sunset: { color: '#ffd0a0', glow: '255,200,160', x: '82%', y: '58%' },
-  night: { color: '#e8e0c4', glow: '232,224,196', x: '76%', y: '16%' },
+  dawn: { color: '#ffd28a', glow: '255,210,138', x: '20%', y: '32%' },
+  day: { color: '#ffe8a0', glow: '255,232,160', x: '78%', y: '10%' },
+  sunset: { color: '#ffd0a0', glow: '255,200,160', x: '82%', y: '32%' },
+  night: { color: '#e8e0c4', glow: '232,224,196', x: '76%', y: '10%' },
 }
 
 const STAR_POSITIONS = [
@@ -74,20 +76,30 @@ function getSkyTheme(hour: number): SkyTheme {
 // ============================================================
 type Slot = { x: number; y: number; scale: number }
 
+// 5층 부감 뷰: 하늘 좁고 바닥 넓음 (ground 영역 55-100%)
+// 17개 슬롯 4행: 앞→뒤로 y↓ scale↓
 const BASE_SLOTS: Slot[] = [
-  // 앞줄 (가장 크고 낮음)
-  { x: 14, y: 82, scale: 1.0 },
-  { x: 36, y: 86, scale: 1.0 },
-  { x: 60, y: 82, scale: 1.0 },
-  { x: 84, y: 86, scale: 0.95 },
-  // 중간줄
-  { x: 22, y: 64, scale: 0.78 },
-  { x: 48, y: 67, scale: 0.78 },
-  { x: 74, y: 64, scale: 0.78 },
-  // 뒷줄
-  { x: 30, y: 48, scale: 0.6 },
-  { x: 54, y: 50, scale: 0.6 },
-  { x: 76, y: 48, scale: 0.6 },
+  // 앞줄 — scale 1.0 (가장 큼)
+  { x: 12, y: 93, scale: 1.0 },
+  { x: 30, y: 95, scale: 1.0 },
+  { x: 50, y: 93, scale: 1.0 },
+  { x: 70, y: 95, scale: 1.0 },
+  { x: 88, y: 93, scale: 0.95 },
+  // 둘째 줄 — scale 0.82
+  { x: 18, y: 84, scale: 0.82 },
+  { x: 38, y: 86, scale: 0.82 },
+  { x: 58, y: 84, scale: 0.82 },
+  { x: 80, y: 86, scale: 0.8 },
+  // 셋째 줄 — scale 0.66
+  { x: 24, y: 75, scale: 0.66 },
+  { x: 44, y: 77, scale: 0.66 },
+  { x: 64, y: 75, scale: 0.66 },
+  { x: 82, y: 77, scale: 0.64 },
+  // 뒷줄 — scale 0.52 (산 발치)
+  { x: 30, y: 66, scale: 0.52 },
+  { x: 50, y: 67, scale: 0.52 },
+  { x: 70, y: 66, scale: 0.52 },
+  { x: 84, y: 67, scale: 0.5 },
 ]
 
 function getSlot(index: number): Slot {
@@ -142,8 +154,8 @@ export function GardenView({ plants, onSelect }: GardenViewProps) {
     <div
       className="relative w-full overflow-hidden rounded-2xl shadow-[0_10px_30px_-12px_rgba(40,60,40,0.45)]"
       style={{
-        height: 'min(62vh, 540px)',
-        minHeight: 380,
+        height: 'min(72vh, 620px)',
+        minHeight: 420,
         background: SKY_BG[theme],
       }}
     >
@@ -179,11 +191,12 @@ export function GardenView({ plants, onSelect }: GardenViewProps) {
         }}
       />
 
-      {/* 산·언덕 SVG (뒤→앞 3단) */}
+      {/* 산·언덕 SVG (뒤→앞 3단) — 좁은 띠로 압축 (38~60%)
+          5층 부감 뷰에 맞춰 하늘과 잔디 사이 가는 능선 */}
       <svg
         aria-hidden
-        className="absolute inset-x-0 bottom-0 w-full"
-        style={{ height: '64%' }}
+        className="absolute inset-x-0 w-full"
+        style={{ top: '38%', height: '22%' }}
         viewBox="0 0 800 480"
         preserveAspectRatio="none"
       >
@@ -231,15 +244,15 @@ export function GardenView({ plants, onSelect }: GardenViewProps) {
         />
       </svg>
 
-      {/* 잔디 → 흙 (앞쪽, 또렷) */}
+      {/* 잔디 → 흙 (5층 부감: 바닥이 화면 절반) */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0"
         style={{
-          height: '22%',
+          height: '45%',
           background: isNight
-            ? 'linear-gradient(to bottom, rgba(40,72,52,0.55) 0%, rgba(34,58,42,0.85) 35%, rgba(30,22,14,0.95) 100%)'
-            : 'linear-gradient(to bottom, rgba(110,156,92,0.5) 0%, rgba(90,134,72,0.85) 30%, rgba(122,90,58,0.95) 70%, rgba(74,58,42,1) 100%)',
+            ? 'linear-gradient(to bottom, rgba(40,72,52,0) 0%, rgba(40,72,52,0.7) 18%, rgba(34,58,42,0.92) 55%, rgba(30,22,14,1) 100%)'
+            : 'linear-gradient(to bottom, rgba(110,156,92,0) 0%, rgba(110,156,92,0.7) 15%, rgba(90,134,72,0.92) 45%, rgba(122,90,58,0.96) 78%, rgba(74,58,42,1) 100%)',
         }}
       />
 
@@ -247,19 +260,19 @@ export function GardenView({ plants, onSelect }: GardenViewProps) {
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <span
           className="absolute text-sm"
-          style={{ left: '5%', top: '88%' }}
+          style={{ left: '4%', top: '96%' }}
         >
           🌾
         </span>
         <span
           className="absolute text-base"
-          style={{ left: '93%', top: '88%' }}
+          style={{ left: '94%', top: '94%' }}
         >
           🪨
         </span>
         <span
           className="absolute text-sm"
-          style={{ left: '42%', top: '93%' }}
+          style={{ left: '40%', top: '97%' }}
         >
           🌿
         </span>
@@ -267,8 +280,8 @@ export function GardenView({ plants, onSelect }: GardenViewProps) {
           <span
             className="absolute text-lg"
             style={{
-              left: '60%',
-              top: '38%',
+              left: '55%',
+              top: '28%',
               animation: 'garden-butterfly 6s ease-in-out infinite',
             }}
           >

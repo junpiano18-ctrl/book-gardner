@@ -3,21 +3,22 @@ import type { Plant, PlantStage, Quote } from '@/types'
 
 // ============================================================
 // 성장 임계값 — DB water_plant() 트리거와 반드시 일치해야 함
-// 물주기 1회 = +10pt · 10회 누적 시 bloom 도달 (= 완독)
-// seed[0,30) → sprout[30,60) → growing[60,100) → bloom[100,+)
+// 물주기 1회 = +10pt · 10회(100pt)에 완독
+// 단계: seed(0회) → sprout(1-3회) → growing(4-6회) → bloom(7-9회) → 10회에 완독
+// growth_point: seed[0,10) sprout[10,40) growing[40,70) bloom[70,100]
 // ============================================================
 export const WATERING_POINTS = 10
-export const POINTS_TO_BLOOM = 100
-export const TOTAL_WATERS_TO_BLOOM = POINTS_TO_BLOOM / WATERING_POINTS
+export const POINTS_TO_COMPLETE = 100
+export const TOTAL_WATERS_TO_BLOOM = POINTS_TO_COMPLETE / WATERING_POINTS // 표시용 "X/10"
 
 export const STAGE_THRESHOLDS: Record<
   PlantStage,
   { start: number; end: number }
 > = {
-  seed: { start: 0, end: 30 },
-  sprout: { start: 30, end: 60 },
-  growing: { start: 60, end: 100 },
-  bloom: { start: 100, end: 100 },
+  seed: { start: 0, end: 10 },
+  sprout: { start: 10, end: 40 },
+  growing: { start: 40, end: 70 },
+  bloom: { start: 70, end: 100 },
 }
 
 // 현재 단계 내 진행률 (0~100)
