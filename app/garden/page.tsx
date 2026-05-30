@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GardenView } from '@/components/Garden/GardenView'
 import { ShelfView } from '@/components/Garden/ShelfView'
@@ -99,9 +98,17 @@ export default function GardenPage() {
           )}
 
           {dataLoading ? (
-            <SkeletonGrid />
-          ) : plantsWithBooks.length === 0 ? (
-            <EmptyGarden />
+            <div
+              className="flex w-full items-center justify-center rounded-2xl text-sm text-stone-600 shadow-[0_10px_30px_-12px_rgba(40,60,40,0.35)]"
+              style={{
+                height: 'min(62vh, 540px)',
+                minHeight: 380,
+                background:
+                  'linear-gradient(to bottom, #92cbee 0%, #c0e0f3 60%, #c8d8c0 100%)',
+              }}
+            >
+              🌱 정원을 깨우는 중...
+            </div>
           ) : view === 'garden' ? (
             <GardenView
               plants={plantsWithBooks}
@@ -162,44 +169,6 @@ function ViewToggle({
       >
         📚 책장
       </button>
-    </div>
-  )
-}
-
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="flex flex-col items-center rounded-2xl bg-white/60 p-4 shadow-sm ring-1 ring-amber-900/5"
-        >
-          <div className="h-24 w-16 animate-pulse rounded-lg bg-stone-200" />
-          <div className="mt-4 h-3 w-20 animate-pulse rounded bg-stone-200" />
-          <div className="mt-2 h-2.5 w-28 animate-pulse rounded bg-stone-200/80" />
-          <div className="mt-4 h-1.5 w-full animate-pulse rounded-full bg-stone-200" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function EmptyGarden() {
-  return (
-    <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-16 text-center">
-      <div className="text-5xl">🪴</div>
-      <h2 className="mt-3 text-lg font-semibold text-stone-700">
-        아직 심은 책이 없어요
-      </h2>
-      <p className="mt-1 text-sm text-stone-500">
-        읽고 싶은 책을 찾아 첫 화분을 만들어보세요
-      </p>
-      <Link
-        href="/search"
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
-      >
-        🔎 책 검색으로 가기
-      </Link>
     </div>
   )
 }
