@@ -16,7 +16,7 @@ export default function SearchPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-          <Header activeKey="search" />
+          <Header />
           <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
             불러오는 중...
           </main>
@@ -112,7 +112,7 @@ function SearchPageInner() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-        <Header activeKey="search" />
+        <Header />
         <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
@@ -122,7 +122,7 @@ function SearchPageInner() {
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-      <Header activeKey="search" />
+      <Header />
 
       <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <div className="mb-6">

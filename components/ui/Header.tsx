@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { key: 'home', label: '🏠 홈', icon: '🏠', short: '홈', href: '/' },
   { key: 'garden', label: '🌱 정원', icon: '🌱', short: '정원', href: '/garden' },
   { key: 'shelf', label: '📚 책장', icon: '📚', short: '책장', href: '/shelf' },
-  { key: 'search', label: '🔍 검색', icon: '🔍', short: '검색', href: '/search' },
+  { key: 'quotes', label: '📇 문장', icon: '📇', short: '문장', href: '/quotes' },
   { key: 'dogan', label: '🌿 도감', icon: '🌿', short: '도감', href: '/dogan' },
 ] as const
 

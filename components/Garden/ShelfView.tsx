@@ -21,10 +21,37 @@ const MIN_SPINE_W = 28
 const MAX_SPINE_W = 64
 const REFERENCE_PAGES = 600
 
+const MIN_SPINE_H = 95
+const MAX_SPINE_H = 130
+const PER_CHAR_H = 13 // upright 세로쓰기에서 글자 한 칸의 세로 높이 추정 (font-size 11 + leading)
+const SPINE_TEXT_PAD = 12 // 상하 양각/음각 띠 회피용 패딩
+
 function spineWidth(totalPages: number | undefined): number {
   if (!totalPages || totalPages <= 0) return MIN_SPINE_W + 8
   const ratio = Math.min(1, totalPages / REFERENCE_PAGES)
   return Math.round(MIN_SPINE_W + (MAX_SPINE_W - MIN_SPINE_W) * ratio)
+}
+
+function visibleLen(s: string): number {
+  // 코드 포인트 단위로 세서 emoji/한자 등 surrogate pair 안전
+  return [...s.trim()].length
+}
+
+// 제목 글자 수에 비례한 책등 높이 (95~130px)
+//  - 4자 이하: 최소 95px
+//  - 그 이상: 글자당 +13px, 최대 130px 까지
+function spineHeight(title: string): number {
+  const len = visibleLen(title)
+  return Math.min(MAX_SPINE_H, MIN_SPINE_H + Math.max(0, len - 4) * PER_CHAR_H)
+}
+
+// 책등 높이에 맞춰 표시 가능한 글자 수로 자르고 필요 시 ellipsis
+function truncateTitleForSpine(title: string, height: number): string {
+  const trimmed = title.trim()
+  const chars = [...trimmed]
+  const maxChars = Math.max(3, Math.floor((height - SPINE_TEXT_PAD) / PER_CHAR_H))
+  if (chars.length <= maxChars) return trimmed
+  return chars.slice(0, Math.max(1, maxChars - 1)).join('') + '…'
 }
 
 interface ShelfViewProps {
@@ -47,7 +74,10 @@ export function ShelfView({
   if (shelves.length === 0) shelves.push([])
 
   return (
-    <div className="space-y-2 rounded-2xl bg-gradient-to-b from-amber-100 to-amber-200/60 p-4 ring-1 ring-amber-900/10 sm:p-6">
+    <div
+      className="space-y-2 rounded-2xl p-4 ring-1 ring-amber-900/15 shadow-[0_8px_24px_-8px_rgba(80,50,20,0.35)] sm:p-6"
+      style={{ background: 'linear-gradient(to bottom, #c8a06a 0%, #a87850 100%)' }}
+    >
       {shelves.map((row, idx) => (
         <Shelf key={idx} books={row} selectedId={selectedId} onSelect={onSelect} />
       ))}
@@ -66,9 +96,9 @@ function Shelf({
 }) {
   return (
     <div className="relative">
-      <div className="flex min-h-[220px] items-end justify-start gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:overflow-visible">
+      <div className="flex min-h-[160px] items-end justify-start gap-2 overflow-x-auto px-3 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:overflow-visible">
         {books.length === 0 ? (
-          <div className="flex h-44 w-full items-center justify-center text-sm text-stone-500">
+          <div className="flex h-32 w-full items-center justify-center text-sm text-stone-700/70">
             아직 심은 책이 없어요
           </div>
         ) : (
@@ -82,7 +112,10 @@ function Shelf({
           ))
         )}
       </div>
-      <div className="h-3 rounded-sm bg-gradient-to-b from-amber-900 to-amber-950 shadow-inner" />
+      <div
+        className="h-4 rounded-sm shadow-[inset_0_2px_3px_rgba(0,0,0,0.35),inset_0_-1px_0_rgba(255,255,255,0.08)]"
+        style={{ background: 'linear-gradient(to bottom, #5a3a1a 0%, #3e2818 100%)' }}
+      />
     </div>
   )
 }
@@ -97,8 +130,25 @@ function BookSpine({
   onSelect?: (plant: PlantWithBook) => void
 }) {
   const width = spineWidth(plant.book.total_pages)
+  const height = spineHeight(plant.book.title)
+  const displayTitle = truncateTitleForSpine(plant.book.title, height)
   const color = getKdcColor(plant.book.kdc_code)
   const clickable = !!onSelect
+
+  // 책등 입체감: 좌측 하이라이트 + 우측 그림자 + 드롭 섀도우 + 외곽 ring
+  // (Tailwind v4 의 ring 도 box-shadow 라 inline 으로 함께 조합)
+  const ring = selected
+    ? '0 0 0 2px #b45309' // amber-700
+    : '0 0 0 1px rgba(0,0,0,0.12)'
+  const drop = selected
+    ? '0 5px 10px rgba(0,0,0,0.28)'
+    : '0 2px 4px rgba(0,0,0,0.2)'
+  const spineShadow = [
+    ring,
+    'inset 1.5px 0 0 rgba(255,255,255,0.18)',
+    'inset -1.5px 0 0 rgba(0,0,0,0.25)',
+    drop,
+  ].join(', ')
 
   return (
     <div
@@ -127,18 +177,31 @@ function BookSpine({
       </div>
 
       <div
-        className={`relative flex h-44 cursor-pointer items-center justify-center rounded-t-sm shadow-md transition ${
-          selected
-            ? '-translate-y-2 ring-2 ring-amber-700 shadow-lg'
-            : 'ring-1 ring-black/10 group-hover:-translate-y-1'
+        className={`relative flex cursor-pointer items-center justify-center overflow-hidden rounded-t-sm transition ${
+          selected ? '-translate-y-2' : 'group-hover:-translate-y-1'
         }`}
-        style={{ width, backgroundColor: color }}
+        style={{
+          width,
+          height,
+          backgroundColor: color,
+          boxShadow: spineShadow,
+        }}
       >
+        {/* 상단 양각 띠 */}
         <span
-          className="select-none whitespace-nowrap font-serif text-[11px] font-medium tracking-wide text-white/95"
-          style={{ writingMode: 'vertical-rl' }}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-[6px] h-px bg-white/30"
+        />
+        {/* 하단 음각 띠 */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-[6px] h-px bg-black/35"
+        />
+        <span
+          className="select-none whitespace-nowrap font-serif text-[11px] font-medium leading-[13px] text-white/95"
+          style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
         >
-          {plant.book.title}
+          {displayTitle}
         </span>
       </div>
 

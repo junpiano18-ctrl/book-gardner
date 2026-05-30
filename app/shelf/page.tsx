@@ -7,6 +7,7 @@ import { Header } from '@/components/ui/Header'
 import { ShelfView } from '@/components/Garden/ShelfView'
 import { WaterModal } from '@/components/ui/WaterModal'
 import { PlantIllustration } from '@/components/Plant/PlantIllustration'
+import { QuoteCard } from '@/components/Quote/QuoteCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
@@ -357,14 +358,14 @@ function QuoteSlider({
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pb-2 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:px-10"
       >
         {quotes.map((q) => (
-          <QuoteCard key={q.id} quote={q} onToggleFavorite={onToggleFavorite} />
+          <QuoteSliderCard key={q.id} quote={q} onToggleFavorite={onToggleFavorite} />
         ))}
       </div>
     </div>
   )
 }
 
-function QuoteCard({
+function QuoteSliderCard({
   quote,
   onToggleFavorite,
 }: {
@@ -613,7 +614,7 @@ function SearchResults({
       ) : (
         <ul className="space-y-3">
           {filtered.map((q) => (
-            <SearchResultCard
+            <QuoteCard
               key={q.id}
               quote={q}
               keyword={keyword}
@@ -623,85 +624,6 @@ function SearchResults({
         </ul>
       )}
     </section>
-  )
-}
-
-function SearchResultCard({
-  quote,
-  keyword,
-  onToggleFavorite,
-}: {
-  quote: QuoteWithRefs
-  keyword: string
-  onToggleFavorite: (q: Quote) => void
-}) {
-  return (
-    <li
-      className="rounded-2xl bg-amber-50 px-5 py-4 shadow-sm ring-1 ring-amber-200/70"
-      style={{
-        backgroundImage:
-          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.45), transparent 60%)',
-      }}
-    >
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-        <span className="line-clamp-1 font-medium text-stone-700">
-          📖 {quote.book?.title ?? '책 정보 없음'}
-        </span>
-        <span className="shrink-0 text-stone-400">
-          {formatDate(quote.watered_at)}
-        </span>
-      </div>
-
-      <blockquote
-        className="border-l-2 border-amber-400 pl-3 text-sm italic leading-relaxed text-stone-800"
-        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
-      >
-        <HighlightedText text={quote.content} keyword={keyword} />
-      </blockquote>
-
-      <div className="mt-2 flex items-center justify-between text-[11px] text-stone-500">
-        <button
-          type="button"
-          onClick={() => onToggleFavorite(quote)}
-          aria-label={quote.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-          aria-pressed={!!quote.is_favorite}
-          className="text-base transition hover:scale-110"
-        >
-          {quote.is_favorite ? '⭐' : '☆'}
-        </button>
-        {quote.page_number && <span>p.{quote.page_number}</span>}
-      </div>
-    </li>
-  )
-}
-
-function HighlightedText({
-  text,
-  keyword,
-}: {
-  text: string
-  keyword: string
-}) {
-  const trimmed = keyword.trim()
-  if (!trimmed) return <>{text}</>
-  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
-  const lowerKey = trimmed.toLowerCase()
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === lowerKey ? (
-          <mark
-            key={i}
-            className="rounded bg-yellow-200 px-0.5 text-stone-900"
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
   )
 }
 
