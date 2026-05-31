@@ -32,6 +32,24 @@ export function normalizeIsbns(isbn?: string): string[] {
 }
 
 // ============================================================
+// 표지 URL 헬퍼 — http→https 변환으로 Mixed-content 차단 회피
+// NL cover server(cover.nl.go.kr) https 정상 지원 확인됨
+// ============================================================
+
+export function isValidCoverUrl(url: string | null | undefined): url is string {
+  if (!url) return false
+  return /^https?:\/\//i.test(url.trim())
+}
+
+// http:// → https:// 강제. protocol-relative `//host` 도 흡수.
+export function toHttpsCoverUrl(url: string): string {
+  return url
+    .trim()
+    .replace(/^http:\/\//i, 'https://')
+    .replace(/^\/\//, 'https://')
+}
+
+// ============================================================
 // 플랜 B: 카카오 책 검색 API (현재 미사용)
 // 일일 호출 한도 초과 등 비상시 되살릴 수 있도록 보존
 // ============================================================

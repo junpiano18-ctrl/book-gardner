@@ -19,6 +19,15 @@
   }
 }
 
+/* 가로 스크롤 방지 — iOS Safari 에서 어떤 자식이 폭을 넘기더라도
+   페이지 자체가 좌우로 쏠리지 않도록. width 100% 명시로 정합 보장. */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

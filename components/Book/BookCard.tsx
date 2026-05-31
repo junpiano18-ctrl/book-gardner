@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { KakaoBook } from '@/types'
 import { getPlantByKdc } from '@/lib/plants'
 import { getKdcColor } from '@/lib/kdc-colors'
+import { toHttpsCoverUrl } from '@/lib/books'
 
 interface BookCardProps {
   book: KakaoBook
@@ -36,15 +37,15 @@ export function BookCard({ book, kdcCode, alreadyPlanted, planting, onPlant }: B
   const kdcPlant = getPlantByKdc(kdcCode)
   const [imageError, setImageError] = useState(false)
   const useFallback = !isValidCoverUrl(book.thumbnail) || imageError
+  // http:// → https:// 강제 (Mixed-content 차단 회피)
+  const coverSrc = useFallback ? null : toHttpsCoverUrl(book.thumbnail)
 
   return (
     <article className="flex gap-4 rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-amber-900/5">
       <div className="relative h-36 w-24 shrink-0 overflow-hidden rounded-md bg-stone-100 ring-1 ring-stone-200">
-        {useFallback ? (
-          <CoverFallback title={book.title} kdcCode={kdcCode} />
-        ) : (
+        {coverSrc ? (
           <Image
-            src={book.thumbnail}
+            src={coverSrc}
             alt={book.title}
             fill
             sizes="96px"
@@ -52,6 +53,8 @@ export function BookCard({ book, kdcCode, alreadyPlanted, planting, onPlant }: B
             unoptimized
             onError={() => setImageError(true)}
           />
+        ) : (
+          <CoverFallback title={book.title} kdcCode={kdcCode} />
         )}
       </div>
 

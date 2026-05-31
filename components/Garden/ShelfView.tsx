@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
+import Image from 'next/image'
 import { getKdcColor } from '@/lib/kdc-colors'
+import { isValidCoverUrl, toHttpsCoverUrl } from '@/lib/books'
 import type { PlantStage, PlantWithBook } from '@/types'
 
 const STAGE_EMOJI: Record<PlantStage, string> = {
@@ -61,6 +64,8 @@ interface ShelfViewProps {
   onSelect?: (plant: PlantWithBook) => void
 }
 
+type Mode = 'cover' | 'spine'
+
 // 책을 균등하게 여러 책장에 분배 — 마지막 줄에 책이 적게 남지 않도록
 function distributeShelves<T>(items: T[], maxPerShelf: number): T[][] {
   if (items.length === 0) return [[]]
@@ -79,15 +84,248 @@ export function ShelfView({
   selectedId,
   onSelect,
 }: ShelfViewProps) {
+  const [mode, setMode] = useState<Mode>('cover')
+
+  return (
+    <div className="space-y-3">
+      <ModeTabs mode={mode} onChange={setMode} />
+      {mode === 'cover' ? (
+        <CoverGrid
+          plants={plants}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ) : (
+        <SpineShelves
+          plants={plants}
+          booksPerShelf={booksPerShelf}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// 모드 탭 — [📚 표지] [📖 책등]
+// ============================================================
+function ModeTabs({
+  mode,
+  onChange,
+}: {
+  mode: Mode
+  onChange: (m: Mode) => void
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="책장 보기 방식"
+      className="inline-flex rounded-full bg-stone-200/70 p-1 text-sm"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'cover'}
+        onClick={() => onChange('cover')}
+        className={`rounded-full px-3 py-1.5 transition ${
+          mode === 'cover'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-600 hover:text-stone-800'
+        }`}
+      >
+        📚 표지
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'spine'}
+        onClick={() => onChange('spine')}
+        className={`rounded-full px-3 py-1.5 transition ${
+          mode === 'spine'
+            ? 'bg-white text-stone-900 shadow-sm'
+            : 'text-stone-600 hover:text-stone-800'
+        }`}
+      >
+        📖 책등
+      </button>
+    </div>
+  )
+}
+
+// ============================================================
+// 표지 그리드 — 새 뷰
+// ============================================================
+function CoverGrid({
+  plants,
+  selectedId,
+  onSelect,
+}: {
+  plants: PlantWithBook[]
+  selectedId?: string | null
+  onSelect?: (plant: PlantWithBook) => void
+}) {
+  if (plants.length === 0) {
+    return (
+      <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-12 text-center">
+        <div className="text-3xl">📚</div>
+        <p className="mt-2 text-sm text-stone-700">
+          아직 책장에 책이 없어요
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <ul className="grid grid-cols-3 gap-3 rounded-2xl bg-white/50 p-3 ring-1 ring-amber-900/10 sm:grid-cols-4 sm:gap-4 sm:p-4 md:grid-cols-5 lg:grid-cols-6">
+      {plants.map((plant) => (
+        <CoverCard
+          key={plant.id}
+          plant={plant}
+          selected={selectedId === plant.book_id}
+          onSelect={onSelect}
+        />
+      ))}
+    </ul>
+  )
+}
+
+// isValidCoverUrl / toHttpsCoverUrl → @/lib/books 에서 공통 import
+
+function CoverCard({
+  plant,
+  selected,
+  onSelect,
+}: {
+  plant: PlantWithBook
+  selected: boolean
+  onSelect?: (plant: PlantWithBook) => void
+}) {
+  const [imgError, setImgError] = useState(false)
+  const httpsCoverUrl = isValidCoverUrl(plant.book.cover_url)
+    ? toHttpsCoverUrl(plant.book.cover_url)
+    : null
+  const showImage = httpsCoverUrl !== null && !imgError
+  const clickable = !!onSelect
+
+  return (
+    <li className="min-w-0">
+      <button
+        type="button"
+        onClick={clickable ? () => onSelect!(plant) : undefined}
+        disabled={!clickable}
+        aria-pressed={clickable ? selected : undefined}
+        aria-label={`${plant.book.title} 상세 열기`}
+        className={`group relative flex w-full flex-col items-center transition active:scale-[0.98] disabled:cursor-default ${
+          clickable ? 'cursor-pointer' : ''
+        }`}
+      >
+        <div
+          className={`relative aspect-[2/3] w-full overflow-hidden rounded-md bg-stone-100 shadow-sm transition ${
+            selected
+              ? 'ring-2 ring-amber-500'
+              : 'ring-1 ring-stone-300/60 group-hover:ring-stone-400'
+          }`}
+        >
+          {showImage ? (
+            <Image
+              src={httpsCoverUrl}
+              alt={plant.book.title}
+              fill
+              sizes="(min-width: 1024px) 16vw, (min-width: 768px) 20vw, 30vw"
+              className="object-cover"
+              unoptimized
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <CoverFallback
+              title={plant.book.title}
+              kdcCode={plant.book.kdc_code}
+            />
+          )}
+        </div>
+        <div
+          className="mt-1.5 line-clamp-1 w-full px-0.5 text-center text-[11px] font-medium text-stone-800 sm:text-[12px]"
+          title={plant.book.title}
+        >
+          {plant.book.title}
+        </div>
+        {/* 호버 툴팁 — 데스크탑에서만 */}
+        <div className="pointer-events-none absolute -top-2 left-1/2 z-10 hidden w-44 -translate-x-1/2 -translate-y-full rounded-md bg-stone-900/95 px-3 py-2 text-left text-xs text-white opacity-0 shadow-lg transition group-hover:opacity-100 sm:block">
+          <div className="font-semibold">{plant.book.title}</div>
+          {plant.book.author && (
+            <div className="mt-0.5 text-stone-300">{plant.book.author}</div>
+          )}
+          <div className="mt-1 text-emerald-300">
+            {STAGE_EMOJI[plant.stage]} {STAGE_LABEL[plant.stage]} ·{' '}
+            {plant.growth_point}pt
+          </div>
+        </div>
+      </button>
+    </li>
+  )
+}
+
+// 표지 없는 책 — 제목을 표지처럼 보여주는 기본 카드
+function CoverFallback({
+  title,
+  kdcCode,
+}: {
+  title: string
+  kdcCode: string
+}) {
+  const color = getKdcColor(kdcCode)
+  return (
+    <div
+      className="flex h-full w-full flex-col items-center justify-center p-2"
+      style={{
+        background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
+      }}
+    >
+      <span
+        className="line-clamp-4 text-center text-[11px] font-semibold leading-tight text-white/95"
+        style={{ fontFamily: '"Nanum Myeongjo", serif' }}
+      >
+        {title}
+      </span>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-1 w-px bg-black/15"
+      />
+    </div>
+  )
+}
+
+// ============================================================
+// 책등 모드 — 기존 로직 (책꽂이에 꽂힌 모습)
+// ============================================================
+function SpineShelves({
+  plants,
+  booksPerShelf,
+  selectedId,
+  onSelect,
+}: {
+  plants: PlantWithBook[]
+  booksPerShelf: number
+  selectedId?: string | null
+  onSelect?: (plant: PlantWithBook) => void
+}) {
   const shelves = distributeShelves(plants, booksPerShelf)
 
   return (
     <div
       className="space-y-2 rounded-2xl p-4 ring-1 ring-amber-900/15 shadow-[0_8px_24px_-8px_rgba(80,50,20,0.35)] sm:p-6"
-      style={{ background: 'linear-gradient(to bottom, #c8a06a 0%, #a87850 100%)' }}
+      style={{
+        background: 'linear-gradient(to bottom, #c8a06a 0%, #a87850 100%)',
+      }}
     >
       {shelves.map((row, idx) => (
-        <Shelf key={idx} books={row} selectedId={selectedId} onSelect={onSelect} />
+        <Shelf
+          key={idx}
+          books={row}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   )

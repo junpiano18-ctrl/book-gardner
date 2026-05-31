@@ -29,7 +29,12 @@ export default function GardenPage() {
 
   const [view, setView] = useState<ViewMode>('garden')
   const [selectedPlant, setSelectedPlant] = useState<PlantWithBook | null>(null)
-  const [weekAgo] = useState(() => Date.now() - WEEK_MS)
+  // SSR/CSR 시각 차이로 인한 hydration mismatch 방지 — 마운트 후에만 설정
+  const [weekAgo, setWeekAgo] = useState<number | null>(null)
+
+  useEffect(() => {
+    setWeekAgo(Date.now() - WEEK_MS)
+  }, [])
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -68,9 +73,15 @@ export default function GardenPage() {
 
   const totalPoints = plantsWithBooks.reduce((sum, p) => sum + p.growth_point, 0)
   const bloomCount = plantsWithBooks.filter((p) => p.stage === 'bloom').length
-  const weeklyWaterings = plantsWithBooks.filter(
-    (p) => p.last_watered_at && new Date(p.last_watered_at).getTime() >= weekAgo
-  ).length
+  // weekAgo 가 아직 null(마운트 전) 이면 0 으로 — SSR/CSR 일치
+  const weeklyWaterings =
+    weekAgo === null
+      ? 0
+      : plantsWithBooks.filter(
+          (p) =>
+            p.last_watered_at &&
+            new Date(p.last_watered_at).getTime() >= weekAgo
+        ).length
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
@@ -100,15 +111,14 @@ export default function GardenPage() {
 
           {dataLoading ? (
             <div
-              className="flex w-full items-center justify-center rounded-2xl text-sm text-stone-600 shadow-[0_10px_30px_-12px_rgba(40,60,40,0.35)]"
+              className="flex w-full items-center justify-center rounded-2xl text-sm text-stone-700 shadow-[0_10px_30px_-12px_rgba(40,60,40,0.35)]"
               style={{
-                height: 'min(62vh, 540px)',
                 minHeight: 380,
                 background:
-                  'linear-gradient(to bottom, #92cbee 0%, #c0e0f3 60%, #c8d8c0 100%)',
+                  'linear-gradient(180deg, #fbf3dc 0%, #f5e9c0 55%, #ecdaa0 100%)',
               }}
             >
-              🌱 정원을 깨우는 중...
+              🌱 온실을 준비하는 중...
             </div>
           ) : view === 'garden' ? (
             <GardenView

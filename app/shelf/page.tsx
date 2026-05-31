@@ -11,6 +11,7 @@ import { QuoteCard } from '@/components/Quote/QuoteCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
+import { KDC_PLANT_MAP } from '@/lib/plants'
 import {
   getQuotesByBook,
   searchQuotes,
@@ -294,10 +295,41 @@ function SelectionPanel({
         </div>
       </div>
 
+      <PlantMeaningPanel kdcCode={plant.kdc_code} />
+
       <QuoteSlider quotes={quotes} onToggleFavorite={onToggleFavorite} />
 
       <ProgressDock plant={plant} onWater={onWater} />
     </div>
+  )
+}
+
+// 이 책에 배정된 자생식물 + 의미. KDC_PLANT_MAP 에서 단일 출처로 조회.
+function PlantMeaningPanel({ kdcCode }: { kdcCode: string }) {
+  const info = KDC_PLANT_MAP[kdcCode?.charAt(0) ?? '']
+  if (!info) return null
+  return (
+    <section
+      className="rounded-2xl bg-amber-50/80 px-4 py-3 ring-1 ring-amber-200/70"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.4), transparent 60%)',
+      }}
+    >
+      <h3 className="flex flex-wrap items-baseline gap-1.5 text-sm font-bold text-stone-800">
+        <span aria-hidden>🌿</span>
+        <span>{info.name}</span>
+        <span className="text-[11px] font-normal italic text-stone-500">
+          {info.sci} · {info.family}
+        </span>
+      </h3>
+      <p
+        className="mt-1 text-xs leading-relaxed text-stone-600 sm:text-[13px]"
+        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
+      >
+        {info.meaning}
+      </p>
+    </section>
   )
 }
 

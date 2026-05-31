@@ -7,6 +7,8 @@ import type { KakaoBook } from '@/types'
 interface BookSearchResultProps {
   results: KakaoBook[]
   searching: boolean
+  // 한 번이라도 검색을 실행했는지 — true 일 때만 "결과 없음" 안내 표시
+  hasSearched: boolean
   plantedIsbns: Set<string>
   plantingIsbn: string | null
   onPlant: (book: KakaoBook, kdcCode: string) => void
@@ -15,6 +17,7 @@ interface BookSearchResultProps {
 export function BookSearchResult({
   results,
   searching,
+  hasSearched,
   plantedIsbns,
   plantingIsbn,
   onPlant,
@@ -27,10 +30,20 @@ export function BookSearchResult({
     )
   }
 
+  // 검색 실행 전: 사서추천만 보이게 아무것도 안 그림
+  if (results.length === 0 && !hasSearched) return null
+
+  // 검색했는데 0건: 안내 메시지
   if (results.length === 0) {
     return (
-      <div className="rounded-2xl border-2 border-dashed border-stone-300 bg-white/30 p-10 text-center text-stone-500">
-        검색어를 입력해보세요. 예) 한강, 데미안, 클린 코드
+      <div className="rounded-2xl bg-white/60 px-6 py-10 text-center text-sm text-stone-600 ring-1 ring-amber-900/5">
+        <div className="text-2xl">🔎</div>
+        <p className="mt-2 font-medium text-stone-700">
+          검색 결과가 없어요
+        </p>
+        <p className="mt-1 text-xs text-stone-500">
+          다른 키워드로 다시 찾아보세요
+        </p>
       </div>
     )
   }

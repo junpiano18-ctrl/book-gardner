@@ -1,16 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/ui/Header'
 import { QuoteCard } from '@/components/Quote/QuoteCard'
 import { useAuth } from '@/hooks/useAuth'
-import {
-  getAllQuotesByUser,
-  searchQuotes,
-  toggleQuoteFavorite,
-} from '@/lib/quotes'
+import { getAllQuotesByUser, toggleQuoteFavorite } from '@/lib/quotes'
 import type { Quote, QuoteWithRefs } from '@/types'
 
 export default function QuotesPage() {
@@ -21,12 +17,7 @@ export default function QuotesPage() {
   const [allLoaded, setAllLoaded] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [favOnly, setFavOnly] = useState(false)
-
-  // 검색 상태
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<QuoteWithRefs[]>([])
-  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -51,52 +42,31 @@ export default function QuotesPage() {
     }
   }, [user])
 
-  // 디바운스 300ms
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 300)
-    return () => clearTimeout(t)
-  }, [query])
-
-  // 키워드 검색
-  useEffect(() => {
-    if (!user) return
-    const trimmed = debouncedQuery.trim()
-    if (!trimmed) {
-      setSearchResults([])
-      setSearching(false)
-      return
+  // 클라이언트 필터: 단어 포함 (대소문자 무시) + 즐겨찾기 토글
+  const visible = useMemo(() => {
+    const trimmed = query.trim()
+    let list = allQuotes
+    if (trimmed) {
+      const lower = trimmed.toLowerCase()
+      list = list.filter((q) => q.content.toLowerCase().includes(lower))
     }
-    let mounted = true
-    setSearching(true)
-    searchQuotes(user.id, trimmed)
-      .then((rs) => {
-        if (mounted) setSearchResults(rs)
-      })
-      .catch((e) => {
-        if (mounted) setError(e as Error)
-      })
-      .finally(() => {
-        if (mounted) setSearching(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [debouncedQuery, user])
+    if (favOnly) list = list.filter((q) => q.is_favorite)
+    return list
+  }, [allQuotes, query, favOnly])
 
-  // 즐겨찾기 토글 — allQuotes + searchResults 양쪽 동기화
   async function handleToggleFavorite(quote: Quote) {
     const next = !quote.is_favorite
-    const apply = (q: QuoteWithRefs) =>
-      q.id === quote.id ? { ...q, is_favorite: next } : q
-    setAllQuotes((prev) => prev.map(apply))
-    setSearchResults((prev) => prev.map(apply))
+    setAllQuotes((prev) =>
+      prev.map((q) => (q.id === quote.id ? { ...q, is_favorite: next } : q))
+    )
     try {
       await toggleQuoteFavorite(quote.id, next)
     } catch (e) {
-      const revert = (q: QuoteWithRefs) =>
-        q.id === quote.id ? { ...q, is_favorite: !next } : q
-      setAllQuotes((prev) => prev.map(revert))
-      setSearchResults((prev) => prev.map(revert))
+      setAllQuotes((prev) =>
+        prev.map((q) =>
+          q.id === quote.id ? { ...q, is_favorite: !next } : q
+        )
+      )
       setError(e as Error)
     }
   }
@@ -112,30 +82,34 @@ export default function QuotesPage() {
     )
   }
 
-  const trimmedQuery = debouncedQuery.trim()
+  const trimmedQuery = query.trim()
   const isSearchingMode = trimmedQuery.length > 0
-  const debouncing = query.trim() !== trimmedQuery
-
-  // 즐겨찾기 토글이 적용된 표시 목록 (검색 모드 아닐 때만)
-  const browseList = favOnly
-    ? allQuotes.filter((q) => q.is_favorite)
-    : allQuotes
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
       <Header activeKey="quotes" />
 
       <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
-        <header className="mb-5">
-          <h1 className="text-2xl font-bold text-stone-800">📇 내 문장</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            키워드로 흩어진 생각을 다시 모아보세요
-            {allLoaded && allQuotes.length > 0 && (
-              <span className="ml-1.5 text-stone-400">
-                · 총 {allQuotes.length}개
-              </span>
-            )}
-          </p>
+        <header className="mb-5 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-stone-800">📇 내 문장</h1>
+            <p className="mt-1 text-sm text-stone-500">
+              키워드로 흩어진 생각을 다시 모아보세요
+              {allLoaded && allQuotes.length > 0 && (
+                <span className="ml-1.5 text-stone-400">
+                  · 총 {allQuotes.length}개
+                </span>
+              )}
+            </p>
+          </div>
+          {allLoaded && allQuotes.length >= 8 && (
+            <Link
+              href="/forest"
+              className="shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:brightness-105"
+            >
+              🌳 문장 숲
+            </Link>
+          )}
         </header>
 
         {/* 검색창 */}
@@ -170,18 +144,16 @@ export default function QuotesPage() {
         {isSearchingMode ? (
           <div className="mb-4 text-xs text-stone-500">
             🔍 &ldquo;{trimmedQuery}&rdquo;
-            {!debouncing && !searching && (
-              <span className="ml-1.5 text-stone-400">
-                · {searchResults.length}개
-              </span>
-            )}
+            <span className="ml-1.5 text-stone-400">
+              · {visible.length}개
+            </span>
           </div>
         ) : (
           allLoaded &&
           allQuotes.length > 0 && (
             <div className="mb-4 flex items-center justify-between text-xs text-stone-500">
               <span>
-                {favOnly ? '⭐ 즐겨찾기' : '전체'} · {browseList.length}개
+                {favOnly ? '⭐ 즐겨찾기' : '전체'} · {visible.length}개
               </span>
               <button
                 type="button"
@@ -210,35 +182,23 @@ export default function QuotesPage() {
           <p className="py-16 text-center text-sm text-stone-500">
             불러오는 중...
           </p>
-        ) : isSearchingMode ? (
-          debouncing || searching ? (
-            <p className="py-10 text-center text-sm text-stone-500">검색 중...</p>
-          ) : searchResults.length === 0 ? (
-            <EmptySearchResult keyword={trimmedQuery} />
-          ) : (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {searchResults.map((q) => (
-                <QuoteCard
-                  key={q.id}
-                  quote={q}
-                  keyword={trimmedQuery}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ))}
-            </ul>
-          )
         ) : allQuotes.length === 0 ? (
           <EmptyCardBox />
-        ) : browseList.length === 0 ? (
-          <p className="rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 py-10 text-center text-sm text-stone-500">
-            ⭐ 즐겨찾기한 문장이 없어요
-          </p>
+        ) : visible.length === 0 ? (
+          isSearchingMode ? (
+            <EmptySearchResult keyword={trimmedQuery} />
+          ) : (
+            <p className="rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 py-10 text-center text-sm text-stone-500">
+              ⭐ 즐겨찾기한 문장이 없어요
+            </p>
+          )
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {browseList.map((q) => (
+            {visible.map((q) => (
               <QuoteCard
                 key={q.id}
                 quote={q}
+                keyword={isSearchingMode ? trimmedQuery : ''}
                 onToggleFavorite={handleToggleFavorite}
               />
             ))}

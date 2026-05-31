@@ -9,6 +9,7 @@ import {
 } from '@/components/Plant/PlantIllustration'
 import { getPlantByKdc, getPlantInfo } from '@/lib/plants'
 import { getQuotesByBook } from '@/lib/quotes'
+import { isValidCoverUrl, toHttpsCoverUrl } from '@/lib/books'
 import type { Book, Plant, PlantInfo, Quote } from '@/types'
 
 interface DoganCardProps {
@@ -153,9 +154,9 @@ function FrontContent({
       </div>
 
       <div className="relative mt-3 h-[150px] w-[100px] overflow-hidden rounded-md bg-stone-100 shadow-sm ring-1 ring-stone-300/70">
-        {book.cover_url ? (
+        {isValidCoverUrl(book.cover_url) ? (
           <Image
-            src={book.cover_url}
+            src={toHttpsCoverUrl(book.cover_url)}
             alt={book.title}
             fill
             sizes="100px"

@@ -54,6 +54,8 @@ export interface KdcPlant {
   name: string
   sci: string
   family: string
+  // 정원 구역 헤더 / 책 상세에서 "왜 이 식물인지" 설명. 한 줄 의미.
+  meaning: string
 }
 
 export type PlantWithBook = Plant & { book: Book }

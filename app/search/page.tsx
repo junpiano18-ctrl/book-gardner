@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/ui/Header'
 import { BookSearchResult } from '@/components/Book/BookSearchResult'
+import { LibrarianPicks } from '@/components/Search/LibrarianPicks'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
@@ -39,6 +40,8 @@ function SearchPageInner() {
   const [query, setQuery] = useState(initialQuery)
   const [plantingIsbn, setPlantingIsbn] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  // "한 번이라도 검색했는가" — 0건일 때 안내 메시지 노출 트리거
+  const [hasSearched, setHasSearched] = useState(false)
   const autoSearchedRef = useRef(false)
 
   useEffect(() => {
@@ -51,6 +54,7 @@ function SearchPageInner() {
     const q = initialQuery.trim()
     if (!q) return
     autoSearchedRef.current = true
+    setHasSearched(true)
     searchBooks(q)
   }, [user, initialQuery, searchBooks])
 
@@ -61,6 +65,7 @@ function SearchPageInner() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!query.trim()) return
+    setHasSearched(true)
     await searchBooks(query)
   }
 
@@ -160,9 +165,16 @@ function SearchPageInner() {
           </div>
         )}
 
+        <LibrarianPicks
+          plantedIsbns={plantedIsbns}
+          plantingIsbn={plantingIsbn}
+          onPlant={handlePlant}
+        />
+
         <BookSearchResult
           results={searchResults}
           searching={searching}
+          hasSearched={hasSearched}
           plantedIsbns={plantedIsbns}
           plantingIsbn={plantingIsbn}
           onPlant={handlePlant}
