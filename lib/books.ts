@@ -50,6 +50,41 @@ export function toHttpsCoverUrl(url: string): string {
 }
 
 // ============================================================
+// NL 검색 결과 — 한국어 자료 우선 정렬
+// ------------------------------------------------------------
+// NL search.do 응답에 직접 'language' 필드는 없지만,
+// control_no 첫 글자가 원산지/언어 코드:
+//   K=한국, J=일본, C=중국·대만, W=서양(영·독·기타)
+// control_no 가 비어있으면 ISBN 그룹코드(978-89, 978-91 = 한국)로
+// 보조 판별. Array.prototype.sort 가 안정 정렬(V8/Node 12+)이므로
+// 같은 우선순위 안에서는 원래 순서가 유지됨.
+// ============================================================
+
+export function nlLanguagePriority(
+  controlNo: string | null | undefined,
+  isbn: string | null | undefined
+): number {
+  const c = (controlNo ?? '').trim().charAt(0).toUpperCase()
+  if (c === 'K') return 0 // 한국 자료
+  if (!c) {
+    const clean = (isbn ?? '').replace(/[\s-]/g, '')
+    if (/^978(89|91)/.test(clean)) return 0 // ISBN 한국 그룹
+    return 1 // 미상
+  }
+  return 2 // J / C / W 등 외국
+}
+
+export function sortKoreanFirst<
+  T extends { control_no?: string | null; isbn?: string | null },
+>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) =>
+      nlLanguagePriority(a.control_no, a.isbn) -
+      nlLanguagePriority(b.control_no, b.isbn)
+  )
+}
+
+// ============================================================
 // 플랜 B: 카카오 책 검색 API (현재 미사용)
 // 일일 호출 한도 초과 등 비상시 되살릴 수 있도록 보존
 // ============================================================

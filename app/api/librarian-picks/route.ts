@@ -90,9 +90,11 @@ async function fetchSaseo(
   startDate: string,
   endDate: string
 ): Promise<RawSaseo[]> {
+  // endRowNumApi=15: NL 정상 응답 확인됨 (실측). 단 NL 사서추천 자체가
+  // 분야×기간당 totalCount 약 8건 정도라 15를 채우진 못함 — 여유분 요청만.
   const url =
     `${SASEO_URL}?key=${key}` +
-    `&startRowNumApi=1&endRowNumApi=10` +
+    `&startRowNumApi=1&endRowNumApi=15` +
     `&start_date=${startDate}&end_date=${endDate}` +
     `&drCode=${drCode}`
 
@@ -195,9 +197,12 @@ export async function GET() {
     return Response.json({ error: (e as Error).message }, { status: 502 })
   }
 
-  // round-robin 으로 분야 골고루 섞음 (최대 12개)
+  // round-robin 으로 분야 골고루 섞음 (최대 12개).
+  // outer 한계를 분야 최대 길이로 — 한 분야가 적게 와도 다른 분야에서
+  // 더 끌어와 12개 cap 까지 안정적으로 채움.
   const interleaved: RawSaseo[] = []
-  for (let i = 0; i < 4; i++) {
+  const maxLen = Math.max(0, ...perCode.map((a) => a.length))
+  for (let i = 0; i < maxLen; i++) {
     for (const arr of perCode) {
       if (arr[i]) interleaved.push(arr[i])
       if (interleaved.length >= 12) break

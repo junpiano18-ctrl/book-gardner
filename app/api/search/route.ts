@@ -1,4 +1,5 @@
 import type { KakaoBook } from '@/types'
+import { nlLanguagePriority } from '@/lib/books'
 
 const NL_BOOK_SEARCH_URL = 'https://www.nl.go.kr/NL/search/openApi/search.do'
 
@@ -137,7 +138,15 @@ export async function GET(request: Request) {
   const blocks = iterItemBlocks(xml)
   console.log('[NL API] parsed <item> block count:', blocks.length)
 
-  const documents: KakaoBook[] = blocks.map((block) => {
+  // 한국 자료(K) > 미상 > 외국 자료(J/C/W) 안정 정렬.
+  // control_no 첫 글자가 NL 의 원산지/언어 코드.
+  const sortedBlocks = [...blocks].sort((a, b) => {
+    const pa = nlLanguagePriority(pickTag(a, 'control_no'), pickTag(a, 'isbn'))
+    const pb = nlLanguagePriority(pickTag(b, 'control_no'), pickTag(b, 'isbn'))
+    return pa - pb
+  })
+
+  const documents: KakaoBook[] = sortedBlocks.map((block) => {
     const title = stripHighlight(pickTag(block, 'title_info', 'titleInfo'))
     const author = stripHighlight(pickTag(block, 'author_info', 'authorInfo'))
     const publisher = stripHighlight(pickTag(block, 'pub_info', 'pubInfo'))

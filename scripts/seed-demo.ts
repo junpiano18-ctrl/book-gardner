@@ -82,13 +82,28 @@ function iterItemBlocks(xml: string): string[] {
   return blocks
 }
 
+// control_no 첫 글자가 NL 의 원산지/언어 코드 (K=한국 우선, J/C/W=외국 뒤로).
+// control_no 가 비면 ISBN 그룹코드(978-89/91 = 한국)로 보조 판별.
+// app/api/search/route.ts 의 nlLanguagePriority 와 동일 — self-contained 유지.
+function languagePriority(controlNo: string, isbn: string): number {
+  const c = controlNo.trim().charAt(0).toUpperCase()
+  if (c === 'K') return 0
+  if (!c) {
+    const clean = isbn.replace(/[\s-]/g, '')
+    if (/^978(89|91)/.test(clean)) return 0
+    return 1
+  }
+  return 2
+}
+
 async function searchNL(keyword: string, key: string): Promise<NLBook | null> {
   const params = new URLSearchParams({
     srchTarget: 'total',
     kwd: keyword,
     category: '도서',
     pageNum: '1',
-    pageSize: '1',
+    // 한국어 우선 정렬을 적용하려면 결과가 여러 개 필요 — 10건 받아서 정렬.
+    pageSize: '10',
     key,
   })
   const res = await fetch(`${NL_BOOK_SEARCH_URL}?${params.toString()}`)
@@ -100,7 +115,15 @@ async function searchNL(keyword: string, key: string): Promise<NLBook | null> {
   }
   const blocks = iterItemBlocks(xml)
   if (blocks.length === 0) return null
-  const block = blocks[0]
+
+  // K(한국) > 미상 > J/C/W 안정 정렬 후 첫 결과 사용
+  const sorted = [...blocks].sort(
+    (a, b) =>
+      languagePriority(pickTag(a, 'control_no'), pickTag(a, 'isbn')) -
+      languagePriority(pickTag(b, 'control_no'), pickTag(b, 'isbn'))
+  )
+  const block = sorted[0]
+
   const title = stripHighlight(pickTag(block, 'title_info', 'titleInfo'))
   const author = stripHighlight(pickTag(block, 'author_info', 'authorInfo'))
   const publisher = stripHighlight(pickTag(block, 'pub_info', 'pubInfo'))
@@ -301,7 +324,7 @@ const SEEDS: BookSeed[] = [
   // ───── bloom 미완 (8회) ─────
   {
     // 우주의 시간 + 별/자연
-    keyword: '코스모스 칼 세이건',
+    keyword: '코스모스 사이언스북스',
     targetQuotes: 8,
     themes: [
       { theme: 'T2_time', count: 4 },
@@ -319,7 +342,7 @@ const SEEDS: BookSeed[] = [
   },
   {
     // 공동체 선택 + 관계
-    keyword: '정의란 무엇인가 마이클 샌델',
+    keyword: '정의란 무엇인가 와이즈베리',
     targetQuotes: 8,
     themes: [
       { theme: 'T3_others', count: 4 },
@@ -328,7 +351,7 @@ const SEEDS: BookSeed[] = [
   },
   {
     // 광주, 죽음, 곁에 남는 슬픔
-    keyword: '소년이 온다 한강',
+    keyword: '소년이 온다 창비',
     targetQuotes: 8,
     themes: [
       { theme: 'T3_others', count: 3 },
@@ -337,7 +360,7 @@ const SEEDS: BookSeed[] = [
   },
   {
     // 지리·환경의 시간, 자연 조건
-    keyword: '총 균 쇠 재레드 다이아몬드',
+    keyword: '총균쇠',
     targetQuotes: 8,
     themes: [
       { theme: 'T2_time', count: 4 },
@@ -347,7 +370,7 @@ const SEEDS: BookSeed[] = [
   // ───── growing (5회) ─────
   {
     // 말 통제 + 사라지는 사람들
-    keyword: '1984 조지 오웰',
+    keyword: '1984 민음사',
     targetQuotes: 5,
     themes: [
       { theme: 'T6_words', count: 3 },
@@ -375,7 +398,7 @@ const SEEDS: BookSeed[] = [
   },
   {
     // 사유의 길, 묻는 자세
-    keyword: '서양 철학사',
+    keyword: '서양철학사 군나르 시르베크',
     targetQuotes: 5,
     themes: [
       { theme: 'T4_choice', count: 2 },
@@ -398,7 +421,7 @@ const SEEDS: BookSeed[] = [
     themes: [{ theme: 'T6_words', count: 2 }],
   },
   {
-    keyword: '종교의 역사',
+    keyword: '축의 시대 카렌 암스트롱',
     targetQuotes: 2,
     themes: [{ theme: 'T7_death', count: 2 }],
   },

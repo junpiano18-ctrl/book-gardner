@@ -59,7 +59,7 @@ export function LibrarianPicks({ plantedIsbns, plantingIsbn, onPlant }: Props) {
     <section className="mb-6">
       <header className="mb-3 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-bold text-stone-700">
-          🏛️ 사서가 고른 오늘의 씨앗
+          🏛️ 사서가 심은 오늘의 책
         </h2>
         <span className="text-[11px] text-stone-500">
           국립중앙도서관 사서 추천

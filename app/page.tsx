@@ -169,10 +169,10 @@ export default function HomePage() {
         {/* (A) 메인 — 내 문장 검색 */}
         <section className="flex flex-col items-center text-center">
           <h1 className="text-2xl font-bold text-stone-800 sm:text-3xl">
-            📜 내 문장에서 찾기
+            기록이 모여 내가 된다
           </h1>
           <p className="mt-2 text-sm text-stone-500 sm:text-base">
-            모아둔 문장을 키워드로 다시 만나요
+            모아둔 문장을 다시 만나고, 새로운 연결을 발견하세요
           </p>
 
           <div className="relative mt-6 w-full max-w-[560px]">
@@ -229,33 +229,43 @@ export default function HomePage() {
 
         {/* (B) 보조 — 새 책 찾아 심기 */}
         <section className="mt-12 rounded-2xl bg-white/60 p-4 ring-1 ring-amber-900/5 sm:p-5">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-stone-700">
-              📚 새 책 찾아 심기
-            </h2>
-            <Link
-              href="/search"
-              className="text-xs text-stone-500 transition hover:text-stone-700"
-            >
-              전체 검색 →
-            </Link>
-          </div>
+          <h2 className="text-sm font-bold text-stone-700">
+            📚 새 책 찾아 심기
+          </h2>
+
           <form onSubmit={handleBookSearch} className="mt-3 flex gap-2">
-            <input
-              type="search"
-              value={bookQuery}
-              onChange={(e) => setBookQuery(e.target.value)}
-              placeholder="책 제목, 저자"
-              aria-label="책 검색"
-              className="h-10 flex-1 rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 placeholder:text-stone-400 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-            />
+            <div className="relative flex-1">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-stone-400"
+              >
+                🔍
+              </span>
+              <input
+                type="search"
+                value={bookQuery}
+                onChange={(e) => setBookQuery(e.target.value)}
+                placeholder="책 제목, 저자"
+                aria-label="책 검색"
+                className="h-11 w-full rounded-full border-2 border-amber-300 bg-white pl-10 pr-4 text-sm text-stone-900 placeholder:text-stone-400 shadow-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
             <button
               type="submit"
-              className="h-10 shrink-0 rounded-full bg-stone-800 px-4 text-sm font-medium text-white transition hover:bg-stone-900"
+              className="h-11 shrink-0 rounded-full bg-stone-800 px-5 text-sm font-medium text-white transition hover:bg-stone-900"
             >
               찾기
             </button>
           </form>
+
+          {/* 사서추천 진입 — 검색창 바로 아래에 눈에 띄게 */}
+          <Link
+            href="/search"
+            className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-amber-50/80 px-4 py-2.5 text-sm font-medium text-amber-900 ring-1 ring-amber-200/70 transition hover:bg-amber-100/90 hover:ring-amber-300"
+          >
+            <span>📚 사서가 심은 오늘의 책</span>
+            <span aria-hidden className="text-amber-700">→</span>
+          </Link>
         </section>
 
         {/* (C) 정원/책장 미리보기 — 보조 위계 */}

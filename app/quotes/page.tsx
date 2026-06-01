@@ -90,27 +90,22 @@ export default function QuotesPage() {
       <Header activeKey="quotes" />
 
       <main className="mx-auto w-full max-w-4xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
-        <header className="mb-5 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-stone-800">📇 내 문장</h1>
-            <p className="mt-1 text-sm text-stone-500">
-              키워드로 흩어진 생각을 다시 모아보세요
-              {allLoaded && allQuotes.length > 0 && (
-                <span className="ml-1.5 text-stone-400">
-                  · 총 {allQuotes.length}개
-                </span>
-              )}
-            </p>
-          </div>
-          {allLoaded && allQuotes.length >= 8 && (
-            <Link
-              href="/forest"
-              className="shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:brightness-105"
-            >
-              🌳 문장 숲
-            </Link>
-          )}
+        <header className="mb-4">
+          <h1 className="text-2xl font-bold text-stone-800">📇 내 문장</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            키워드로 흩어진 생각을 다시 모아보세요
+            {allLoaded && allQuotes.length > 0 && (
+              <span className="ml-1.5 text-stone-400">
+                · 총 {allQuotes.length}개
+              </span>
+            )}
+          </p>
         </header>
+
+        {/* AI 문장 숲 입구 — 카드 목록 위 가로 배너 */}
+        {allLoaded && allQuotes.length > 0 && (
+          <ForestBanner quoteCount={allQuotes.length} />
+        )}
 
         {/* 검색창 */}
         <div className="relative mb-5">
@@ -206,6 +201,112 @@ export default function QuotesPage() {
         )}
       </main>
     </div>
+  )
+}
+
+// AI 문장 숲 입구 배너 — 깊은 숲 톤 + warm glow.
+// 카드함 진입자가 자연스럽게 발견하도록 카드 목록 바로 위에 노출.
+function ForestBanner({ quoteCount }: { quoteCount: number }) {
+  return (
+    <Link
+      href="/forest"
+      aria-label="AI 문장 숲 열기"
+      className="group relative mb-5 block overflow-hidden rounded-2xl shadow-[0_10px_30px_-14px_rgba(20,40,30,0.55)] transition active:scale-[0.995]"
+      style={{
+        background:
+          'linear-gradient(135deg, #0e1a36 0%, #14302a 50%, #2c1f12 100%)',
+      }}
+    >
+      {/* 우측 warm glow — 따뜻한 호박색 빛이 숲 너머에서 새어 나오는 느낌 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 100% 50%, rgba(251,191,36,0.22), transparent 55%)',
+        }}
+      />
+      {/* 좌하단 짙은 글로우 — 깊이감 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 0% 100%, rgba(16,185,129,0.12), transparent 50%)',
+        }}
+      />
+      {/* 미세한 빛 입자 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-[18%] top-[22%] text-[10px]"
+        style={{ color: 'rgba(251,224,158,0.65)' }}
+      >
+        ✦
+      </span>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-[34%] top-[68%] text-[8px]"
+        style={{ color: 'rgba(251,224,158,0.45)' }}
+      >
+        ✦
+      </span>
+
+      <div className="relative flex items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5">
+        {/* 좌측 — 숲 입구 아이콘 */}
+        <div
+          aria-hidden
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl sm:h-14 sm:w-14 sm:text-3xl"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 35%, rgba(251,191,36,0.28), rgba(20,48,42,0) 70%)',
+            filter: 'drop-shadow(0 0 12px rgba(251,191,36,0.25))',
+          }}
+        >
+          🌳
+        </div>
+
+        {/* 가운데 — 카피 */}
+        <div className="min-w-0 flex-1">
+          <h2
+            className="text-base font-bold sm:text-lg"
+            style={{
+              color: '#f6efdb',
+              textShadow: '0 1px 4px rgba(0,0,0,0.45)',
+              fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif',
+            }}
+          >
+            문장이 모여 숲이 된다
+          </h2>
+          <p
+            className="mt-0.5 line-clamp-2 text-[11px] leading-snug sm:text-[12px]"
+            style={{ color: '#cfc6a8' }}
+          >
+            흩어둔 문장을 의미로 묶어, 그 사이로 난 길을 보여드려요
+          </p>
+        </div>
+
+        {/* 우측 — 동적 카운트 + 화살표 */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className="rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums sm:text-xs"
+            style={{
+              backgroundColor: 'rgba(251,191,36,0.18)',
+              color: '#fde7a1',
+              boxShadow: 'inset 0 0 0 1px rgba(251,191,36,0.35)',
+            }}
+          >
+            {quoteCount}개 문장
+          </span>
+          <span
+            aria-hidden
+            className="text-base transition-transform group-hover:translate-x-0.5"
+            style={{ color: '#fde7a1' }}
+          >
+            →
+          </span>
+        </div>
+      </div>
+    </Link>
   )
 }
 
