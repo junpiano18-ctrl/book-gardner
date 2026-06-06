@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { GardenView } from '@/components/Garden/GardenView'
 import { ShelfView } from '@/components/Garden/ShelfView'
 import { ReadingMap } from '@/components/Garden/ReadingMap'
+import { PlantsCatalog } from '@/components/Garden/PlantsCatalog'
 import { Header } from '@/components/ui/Header'
 import { WaterModal } from '@/components/ui/WaterModal'
 import { useAuth } from '@/hooks/useAuth'
@@ -101,6 +102,11 @@ export default function GardenPage() {
                 ? '읽는 만큼 자라는 식물을 가꿔보세요'
                 : '책등의 두께와 색이 책을 말해줍니다'}
             </p>
+          </div>
+
+          {/* 접이식 분야별 식물 도감 — 평소엔 한 줄, 펼치면 KDC 10종 전체 */}
+          <div className="mb-4">
+            <PlantsCatalog />
           </div>
 
           {dataError && (
