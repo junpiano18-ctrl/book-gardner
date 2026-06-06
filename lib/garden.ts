@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Plant, PlantStage, Quote } from '@/types'
+import type { Book, Plant, PlantStage, Quote } from '@/types'
 
 // ============================================================
 // 성장 임계값 — DB water_plant() 트리거와 반드시 일치해야 함
@@ -117,6 +117,48 @@ export async function createPlant(
 
   if (error) throw error
   return data as Plant
+}
+
+// ============================================================
+// 완독 처리 — Supabase RPC `mark_book_completed` 호출.
+// 물주기(waterPlant) 와 완전히 분리된 별도 함수.
+// RPC 가 plants.completed_at + books.status='completed' 를 한 트랜잭션으로
+// 원자적으로 갱신. 클라이언트에서 두 번 UPDATE 하지 않음 (정합성 보장).
+// ============================================================
+
+export interface MarkBookCompletedInput {
+  plantId: string
+  bookId: string
+}
+
+export interface MarkBookCompletedResult {
+  plant: Plant
+  book: Book
+}
+
+export async function markBookCompleted(
+  input: MarkBookCompletedInput
+): Promise<MarkBookCompletedResult> {
+  const { plantId, bookId } = input
+
+  const { error: rpcError } = await supabase.rpc('mark_book_completed', {
+    p_plant_id: plantId,
+    p_book_id: bookId,
+  })
+  if (rpcError) throw rpcError
+
+  // RPC 성공 — 갱신된 plant 와 book 재조회
+  const [plantRes, bookRes] = await Promise.all([
+    supabase.from('plants').select('*').eq('id', plantId).single(),
+    supabase.from('books').select('*').eq('id', bookId).single(),
+  ])
+  if (plantRes.error) throw plantRes.error
+  if (bookRes.error) throw bookRes.error
+
+  return {
+    plant: plantRes.data as Plant,
+    book: bookRes.data as Book,
+  }
 }
 
 export async function updatePlant(

@@ -1,30 +1,16 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Header } from '@/components/ui/Header'
 import { ShelfView } from '@/components/Garden/ShelfView'
-import { WaterModal } from '@/components/ui/WaterModal'
-import { PlantIllustration } from '@/components/Plant/PlantIllustration'
 import { QuoteCard } from '@/components/Quote/QuoteCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useBook } from '@/hooks/useBook'
 import { useGarden } from '@/hooks/useGarden'
-import { KDC_PLANT_MAP } from '@/lib/plants'
-import {
-  getQuotesByBook,
-  searchQuotes,
-  toggleQuoteFavorite,
-} from '@/lib/quotes'
-import type { PlantStage, PlantWithBook, Quote, QuoteWithRefs } from '@/types'
-
-const STAGE_LABEL: Record<PlantStage, string> = {
-  seed: '씨앗',
-  sprout: '새싹',
-  growing: '성장',
-  bloom: '개화',
-}
+import { searchQuotes, toggleQuoteFavorite } from '@/lib/quotes'
+import type { PlantWithBook, Quote, QuoteWithRefs } from '@/types'
 
 export default function ShelfPage() {
   return (
@@ -48,37 +34,26 @@ export default function ShelfPage() {
 
 function ShelfPageInner() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const queryBookId = searchParams.get('bookId')
-
   const { user, loading: authLoading } = useAuth()
   const {
     plants,
     loading: plantsLoading,
     error: plantsError,
-    waterPlant,
   } = useGarden(user?.id)
   const { books, loading: booksLoading, error: booksError } = useBook(user?.id)
 
-  const [userBookId, setUserBookId] = useState<string | null>(queryBookId)
-  const [quotesByBook, setQuotesByBook] = useState<Record<string, Quote[]>>({})
-  const [waterModalPlant, setWaterModalPlant] = useState<PlantWithBook | null>(null)
-  const loadedRef = useRef<Set<string>>(new Set())
-
-  // 검색 관련 상태
+  // 책장 상단 — 사용자 문장 전체 검색 (인라인 책 펼침과 무관, 유지)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [searchResults, setSearchResults] = useState<QuoteWithRefs[]>([])
   const [searchError, setSearchError] = useState<Error | null>(null)
   const [bookFilter, setBookFilter] = useState<string | null>(null)
 
-  // 디바운스 300ms
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300)
     return () => clearTimeout(t)
   }, [searchQuery])
 
-  // 디바운스된 쿼리로 실제 검색 — setState는 모두 async 콜백 안에서만
   useEffect(() => {
     if (!user) return
     const trimmed = debouncedQuery.trim()
@@ -115,48 +90,14 @@ function ShelfPageInner() {
       .filter((p): p is PlantWithBook => p !== null)
   }, [plants, books])
 
-  // 유효한 선택 ID를 derive — 사용자가 고른 값이 plants에 없으면 첫 책으로 폴백
-  const selectedBookId = useMemo(() => {
-    if (plantsWithBooks.length === 0) return null
-    if (userBookId && plantsWithBooks.some((p) => p.book_id === userBookId)) {
-      return userBookId
-    }
-    return plantsWithBooks[0].book_id
-  }, [plantsWithBooks, userBookId])
-
-  // 선택된 책의 quote를 한 번만 fetch
-  useEffect(() => {
-    if (!selectedBookId) return
-    if (loadedRef.current.has(selectedBookId)) return
-    loadedRef.current.add(selectedBookId)
-    let mounted = true
-    getQuotesByBook(selectedBookId)
-      .then((qs) => {
-        if (!mounted) return
-        setQuotesByBook((prev) => ({ ...prev, [selectedBookId]: qs }))
-      })
-      .catch(() => {
-        loadedRef.current.delete(selectedBookId)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [selectedBookId])
-
+  // 책 클릭 → 곧바로 책 상세 페이지로 (이전엔 같은 페이지에서 인라인 펼침이었음)
   function handleSelect(plant: PlantWithBook) {
-    setUserBookId(plant.book_id)
-    router.replace(`/shelf?bookId=${plant.book_id}`, { scroll: false })
+    router.push(`/books/${plant.book_id}`)
   }
 
   async function handleToggleFavorite(quote: Quote) {
     try {
       const updated = await toggleQuoteFavorite(quote.id, !quote.is_favorite)
-      setQuotesByBook((prev) => ({
-        ...prev,
-        [quote.book_id]: (prev[quote.book_id] ?? []).map((q) =>
-          q.id === quote.id ? updated : q
-        ),
-      }))
       setSearchResults((prev) =>
         prev.map((q) =>
           q.id === quote.id ? { ...q, is_favorite: updated.is_favorite } : q
@@ -166,12 +107,6 @@ function ShelfPageInner() {
       // 무시 — UI는 다음 fetch 때 보정됨
     }
   }
-
-  const selected = useMemo(
-    () => plantsWithBooks.find((p) => p.book_id === selectedBookId) ?? null,
-    [plantsWithBooks, selectedBookId]
-  )
-  const quotes = selectedBookId ? quotesByBook[selectedBookId] : undefined
 
   if (authLoading || !user) {
     return (
@@ -198,7 +133,7 @@ function ShelfPageInner() {
         <header className="mb-5">
           <h1 className="text-2xl font-bold text-stone-800">📚 나의 책장</h1>
           <p className="mt-1 text-sm text-stone-500">
-            책을 클릭하면 그 책에 남긴 문장이 펼쳐져요
+            책을 클릭하면 그 책의 상세 페이지로 이동해요
           </p>
         </header>
 
@@ -237,250 +172,9 @@ function ShelfPageInner() {
         ) : plantsWithBooks.length === 0 ? (
           <EmptyShelf />
         ) : (
-          <>
-            <ShelfView
-              plants={plantsWithBooks}
-              selectedId={selectedBookId}
-              onSelect={handleSelect}
-            />
-
-            <div className="mt-8">
-              {selected ? (
-                <SelectionPanel
-                  plant={selected}
-                  quotes={quotes}
-                  onWater={() => setWaterModalPlant(selected)}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ) : (
-                <div className="rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-10 text-center text-sm text-stone-500">
-                  위에서 책을 골라보세요
-                </div>
-              )}
-            </div>
-          </>
+          <ShelfView plants={plantsWithBooks} onSelect={handleSelect} />
         )}
       </main>
-
-      <WaterModal
-        plant={waterModalPlant}
-        onClose={() => setWaterModalPlant(null)}
-        onWater={waterPlant}
-      />
-    </div>
-  )
-}
-
-function SelectionPanel({
-  plant,
-  quotes,
-  onWater,
-  onToggleFavorite,
-}: {
-  plant: PlantWithBook
-  quotes: Quote[] | undefined
-  onWater: () => void
-  onToggleFavorite: (q: Quote) => void
-}) {
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <PlantIllustration kdcCode={plant.kdc_code} stage={plant.stage} size={56} />
-        <div>
-          <h2 className="text-lg font-bold text-stone-800">{plant.book.title}</h2>
-          <p className="text-xs text-stone-500">
-            {plant.book.author ?? '저자 미상'} · 🌸 {plant.plant_name}
-            {quotes && quotes.length > 0 && ` · 📜 ${quotes.length}개의 문장`}
-          </p>
-        </div>
-      </div>
-
-      <PlantMeaningPanel kdcCode={plant.kdc_code} />
-
-      <QuoteSlider quotes={quotes} onToggleFavorite={onToggleFavorite} />
-
-      <ProgressDock plant={plant} onWater={onWater} />
-    </div>
-  )
-}
-
-// 이 책에 배정된 자생식물 + 의미. KDC_PLANT_MAP 에서 단일 출처로 조회.
-function PlantMeaningPanel({ kdcCode }: { kdcCode: string }) {
-  const info = KDC_PLANT_MAP[kdcCode?.charAt(0) ?? '']
-  if (!info) return null
-  return (
-    <section
-      className="rounded-2xl bg-amber-50/80 px-4 py-3 ring-1 ring-amber-200/70"
-      style={{
-        backgroundImage:
-          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.4), transparent 60%)',
-      }}
-    >
-      <h3 className="flex flex-wrap items-baseline gap-1.5 text-sm font-bold text-stone-800">
-        <span aria-hidden>🌿</span>
-        <span>{info.name}</span>
-        <span className="text-[11px] font-normal italic text-stone-500">
-          {info.sci} · {info.family}
-        </span>
-      </h3>
-      <p
-        className="mt-1 text-xs leading-relaxed text-stone-600 sm:text-[13px]"
-        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
-      >
-        {info.meaning}
-      </p>
-    </section>
-  )
-}
-
-function QuoteSlider({
-  quotes,
-  onToggleFavorite,
-}: {
-  quotes: Quote[] | undefined
-  onToggleFavorite: (q: Quote) => void
-}) {
-  const scrollerRef = useRef<HTMLDivElement>(null)
-
-  function scroll(dir: 'prev' | 'next') {
-    const el = scrollerRef.current
-    if (!el) return
-    const card = el.querySelector<HTMLElement>('[data-quote-card]')
-    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.8
-    el.scrollBy({ left: dir === 'next' ? step : -step, behavior: 'smooth' })
-  }
-
-  if (quotes === undefined) {
-    return (
-      <div className="rounded-2xl bg-white/60 px-6 py-10 text-center text-sm text-stone-500">
-        문장을 불러오는 중...
-      </div>
-    )
-  }
-
-  if (quotes.length === 0) {
-    return (
-      <div className="rounded-2xl border-2 border-dashed border-stone-300 bg-white/40 px-6 py-10 text-center text-sm text-stone-500">
-        아직 이 책에 남긴 문장이 없어요. 💧 물주기로 첫 문장을 남겨보세요
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => scroll('prev')}
-        aria-label="이전 문장"
-        className="absolute left-0 top-1/2 z-10 hidden h-11 w-11 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white sm:flex"
-      >
-        ‹
-      </button>
-      <button
-        type="button"
-        onClick={() => scroll('next')}
-        aria-label="다음 문장"
-        className="absolute right-0 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 translate-x-1 items-center justify-center rounded-full bg-white/90 text-lg text-stone-700 shadow ring-1 ring-stone-200 transition hover:bg-white sm:flex"
-      >
-        ›
-      </button>
-
-      <div
-        ref={scrollerRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pb-2 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scrollbar-width:none] sm:px-10"
-      >
-        {quotes.map((q) => (
-          <QuoteSliderCard key={q.id} quote={q} onToggleFavorite={onToggleFavorite} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function QuoteSliderCard({
-  quote,
-  onToggleFavorite,
-}: {
-  quote: Quote
-  onToggleFavorite: (q: Quote) => void
-}) {
-  return (
-    <article
-      data-quote-card
-      className="relative shrink-0 snap-center rounded-2xl bg-amber-50 px-5 py-5 shadow-md ring-1 ring-amber-200/80 sm:px-7 sm:py-6"
-      style={{
-        width: 'min(320px, 85vw)',
-        backgroundImage:
-          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.18), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.5), transparent 60%)',
-      }}
-    >
-      <div className="pointer-events-none absolute inset-2 rounded-xl ring-1 ring-amber-300/40" />
-
-      <button
-        type="button"
-        onClick={() => onToggleFavorite(quote)}
-        aria-label={quote.is_favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-        aria-pressed={!!quote.is_favorite}
-        className="absolute right-3 top-3 z-10 text-lg transition hover:scale-110"
-      >
-        {quote.is_favorite ? '⭐' : '☆'}
-      </button>
-
-      <div className="font-serif text-5xl leading-none text-amber-700/50">❝</div>
-      <p
-        className="mt-2 text-base italic leading-relaxed text-stone-800"
-        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
-      >
-        {quote.content}
-      </p>
-      <div className="mt-2 flex justify-end font-serif text-5xl leading-none text-amber-700/50">
-        ❞
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-[11px] text-stone-500">
-        <span>{quote.page_number ? `p.${quote.page_number}` : ''}</span>
-        <span>{formatDate(quote.watered_at)}</span>
-      </div>
-    </article>
-  )
-}
-
-function ProgressDock({
-  plant,
-  onWater,
-}: {
-  plant: PlantWithBook
-  onWater: () => void
-}) {
-  const progress = plant.growth_point % 100
-  const isCompleted = !!plant.completed_at
-
-  return (
-    <div className="rounded-2xl bg-white/80 px-5 py-4 shadow-sm ring-1 ring-amber-900/5">
-      <div className="mb-2 flex items-center justify-between text-xs">
-        <span className="font-medium text-stone-700">
-          {STAGE_LABEL[plant.stage]} · 총 {plant.growth_point}pt
-          {isCompleted && (
-            <span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-700">
-              완독
-            </span>
-          )}
-        </span>
-        <span className="text-stone-500">{progress} / 100</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-all"
-          style={{ width: `${isCompleted ? 100 : progress}%` }}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={onWater}
-        className="mt-4 w-full rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-[0.99]"
-      >
-        💧 {isCompleted ? '도감에 한 줄 더하기' : '물주기'}
-      </button>
     </div>
   )
 }
@@ -512,13 +206,6 @@ function EmptyShelf() {
       </Link>
     </div>
   )
-}
-
-function formatDate(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
 function SearchBar({

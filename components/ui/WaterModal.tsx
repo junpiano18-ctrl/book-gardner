@@ -434,7 +434,7 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
 
             <div>
               <label htmlFor="water-page" className="mb-1 block text-xs font-medium text-stone-600">
-                오늘 읽은 마지막 페이지{' '}
+                문장이 적힌 페이지{' '}
                 <span className="text-stone-400">(선택)</span>
               </label>
               <input
@@ -476,8 +476,8 @@ function WaterModalContent({ plant, onClose, onWater }: ContentProps) {
                 {submitting
                   ? '기록 중...'
                   : isDogamMode
-                    ? '📝 문장 기록'
-                    : '💧 물주기'}
+                    ? '✍️ 문장 더 남기기'
+                    : '🌱 문장 적고 물주기'}
               </button>
             </div>
           </form>

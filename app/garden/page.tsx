@@ -124,12 +124,12 @@ export default function GardenPage() {
             <GardenView
               plants={plantsWithBooks}
               onWater={setSelectedPlant}
-              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+              onSelect={(plant) => router.push(`/books/${plant.book_id}`)}
             />
           ) : (
             <ShelfView
               plants={plantsWithBooks}
-              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+              onSelect={(plant) => router.push(`/books/${plant.book_id}`)}
             />
           )}
 

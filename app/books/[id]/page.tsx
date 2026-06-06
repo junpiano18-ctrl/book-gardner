@@ -9,9 +9,13 @@ import { PlantIllustration, hasPlantIllustration } from '@/components/Plant/Plan
 import { WaterModal } from '@/components/ui/WaterModal'
 import { useAuth } from '@/hooks/useAuth'
 import { getBookById } from '@/lib/books'
-import { getPlantByBookId, waterPlant as waterPlantLib } from '@/lib/garden'
+import {
+  getPlantByBookId,
+  markBookCompleted,
+  waterPlant as waterPlantLib,
+} from '@/lib/garden'
 import { addQuote, getQuotesByBook, toggleQuoteFavorite } from '@/lib/quotes'
-import { getPlantByKdc, getPlantInfo } from '@/lib/plants'
+import { getPlantByKdc, getPlantInfo, KDC_PLANT_MAP } from '@/lib/plants'
 import type { Book, Plant, PlantInfo, PlantStage, PlantWithBook, Quote } from '@/types'
 
 type SortMode = 'page' | 'recent' | 'oldest'
@@ -48,6 +52,10 @@ export default function BookDetailPage({
   const [sort, setSort] = useState<SortMode>('page')
   const [modalOpen, setModalOpen] = useState(false)
   const [favOnly, setFavOnly] = useState(false)
+  // 완독 처리 — 물주기 와 완전 분리된 별도 흐름
+  const [confirmingComplete, setConfirmingComplete] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const [justCompleted, setJustCompleted] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -129,6 +137,26 @@ export default function BookDetailPage({
     }
   }
 
+  async function handleMarkCompleted() {
+    if (!plant || !book || completing) return
+    setCompleting(true)
+    try {
+      const result = await markBookCompleted({
+        plantId: plant.id,
+        bookId: book.id,
+      })
+      setPlant(result.plant)
+      setBook(result.book)
+      setConfirmingComplete(false)
+      setJustCompleted(true)
+      setTimeout(() => setJustCompleted(false), 1800)
+    } catch (e) {
+      setError(e as Error)
+    } finally {
+      setCompleting(false)
+    }
+  }
+
   async function handleToggleFavorite(quote: Quote) {
     const next = !quote.is_favorite
     setQuotes((prev) =>
@@ -147,7 +175,7 @@ export default function BookDetailPage({
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-        <Header activeKey="dogan" />
+        <Header />
         <main className="mx-auto w-full max-w-3xl px-4 py-10 text-center text-stone-500 sm:px-6">
           불러오는 중...
         </main>
@@ -157,16 +185,17 @@ export default function BookDetailPage({
 
   return (
     <div className="min-h-screen flex-1" style={{ backgroundColor: '#fdf6ee' }}>
-      <Header activeKey="dogan" />
+      <Header />
 
       <main className="mx-auto w-full max-w-3xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <div className="mb-4">
-          <Link
-            href="/library"
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="inline-flex items-center gap-1 text-sm text-stone-500 transition hover:text-stone-800"
           >
-            ← 도감으로 돌아가기
-          </Link>
+            ← 이전으로 돌아가기
+          </button>
         </div>
 
         {error && (
@@ -187,7 +216,17 @@ export default function BookDetailPage({
               plantInfo={plantInfo}
               quoteCount={quotes.length}
               onAddQuote={plant ? () => setModalOpen(true) : undefined}
+              onMarkCompleted={
+                plant && !plant.completed_at
+                  ? () => setConfirmingComplete(true)
+                  : undefined
+              }
             />
+
+            {/* 이 책에 배정된 자생식물 + 의미 (전엔 /shelf 인라인에 있던 패널) */}
+            <div className="mt-5">
+              <PlantMeaningPanel kdcCode={book.kdc_code} />
+            </div>
 
             <section className="mt-8">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -238,6 +277,17 @@ export default function BookDetailPage({
           onWater={handleWater}
         />
       )}
+
+      {confirmingComplete && book && (
+        <ConfirmCompleteModal
+          bookTitle={book.title}
+          submitting={completing}
+          onCancel={() => setConfirmingComplete(false)}
+          onConfirm={handleMarkCompleted}
+        />
+      )}
+
+      {justCompleted && <CelebrationOverlay />}
     </div>
   )
 }
@@ -248,12 +298,15 @@ function BookHeader({
   plantInfo,
   quoteCount,
   onAddQuote,
+  onMarkCompleted,
 }: {
   book: Book
   plant: Plant | null
   plantInfo: PlantInfo | null
   quoteCount: number
   onAddQuote?: () => void
+  // 미완독 상태일 때만 전달됨 (완독 후엔 undefined)
+  onMarkCompleted?: () => void
 }) {
   const kdcPlant = plant ?? null
   const fallbackPlant = !kdcPlant ? getPlantByKdc(book.kdc_code) : null
@@ -299,7 +352,7 @@ function BookHeader({
                 onClick={onAddQuote}
                 className="shrink-0 rounded-full bg-gradient-to-br from-emerald-500 to-sky-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-105"
               >
-                + 문장 추가
+                {plant?.completed_at ? '✍️ 문장 더 남기기' : '🌱 문장 적고 물주기'}
               </button>
             )}
           </div>
@@ -331,6 +384,15 @@ function BookHeader({
             <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-stone-700">
               📜 문장 {quoteCount}개
             </span>
+            {onMarkCompleted && (
+              <button
+                type="button"
+                onClick={onMarkCompleted}
+                className="ml-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-br from-rose-500 to-amber-500 px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-[0.97]"
+              >
+                ✅ 완독했어요
+              </button>
+            )}
           </div>
 
           {sciName && (
@@ -502,7 +564,7 @@ function NotFound() {
         href="/library"
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-stone-800 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-900"
       >
-        도감으로 돌아가기
+        책장으로 돌아가기
       </Link>
     </div>
   )
@@ -512,4 +574,151 @@ function formatDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+// 이 책에 배정된 자생식물 + 의미. KDC_PLANT_MAP 에서 단일 출처로 조회.
+// (이전엔 /shelf 인라인 영역에 있었으나 책장 클릭 → /books/[id] 직행 정책으로
+//  옮겨옴. 식물 의미 표시는 책 상세에서 유지.)
+function PlantMeaningPanel({ kdcCode }: { kdcCode: string }) {
+  const info = KDC_PLANT_MAP[kdcCode?.charAt(0) ?? '']
+  if (!info) return null
+  return (
+    <section
+      className="rounded-2xl bg-amber-50/80 px-4 py-3 ring-1 ring-amber-200/70"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 0% 0%, rgba(218,184,134,0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(255,236,200,0.4), transparent 60%)',
+      }}
+    >
+      <h3 className="flex flex-wrap items-baseline gap-1.5 text-sm font-bold text-stone-800">
+        <span aria-hidden>🌿</span>
+        <span>{info.name}</span>
+        <span className="text-[11px] font-normal italic text-stone-500">
+          {info.sci} · {info.family}
+        </span>
+      </h3>
+      <p
+        className="mt-1 text-xs leading-relaxed text-stone-600 sm:text-[13px]"
+        style={{ fontFamily: '"Nanum Myeongjo", var(--font-geist-sans), serif' }}
+      >
+        {info.meaning}
+      </p>
+    </section>
+  )
+}
+
+// ============================================================
+// 완독 처리 — 확인 모달
+// ============================================================
+function ConfirmCompleteModal({
+  bookTitle,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  bookTitle: string
+  submitting: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="완독 확인"
+      className="fixed inset-0 z-40 flex items-center justify-center px-4"
+    >
+      {/* dim */}
+      <button
+        type="button"
+        aria-label="닫기"
+        onClick={submitting ? undefined : onCancel}
+        className="absolute inset-0 bg-stone-900/55 backdrop-blur-sm"
+      />
+
+      {/* card */}
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-stone-200">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">📖</div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-stone-800">
+              이 책을 완독으로 기록할까요?
+            </h3>
+            <p className="mt-1 line-clamp-2 text-sm text-stone-600">
+              <span className="font-medium">{bookTitle}</span>
+            </p>
+            <p className="mt-2 text-xs text-stone-500">
+              완독한 책은 도감에 영구 보존돼요. 이후에도 문장은 계속 모을 수
+              있어요.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded-full px-4 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={submitting}
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-rose-500 to-amber-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-wait disabled:opacity-70"
+          >
+            {submitting ? '기록 중...' : '✅ 네, 완독했어요'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// 완독 축하 — 1.8초 자동 페이드 (WaterModal justCompleted 타이밍과 동일)
+// ============================================================
+function CelebrationOverlay() {
+  return (
+    <div
+      aria-live="polite"
+      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-6"
+    >
+      {/* 부드러운 dim — 짧게만 */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 45%, rgba(255,200,120,0.30) 0%, rgba(0,0,0,0.18) 60%, rgba(0,0,0,0) 100%)',
+          animation: 'float-up 1.8s ease-out forwards',
+        }}
+      />
+      {/* 카드 */}
+      <div
+        className="relative flex flex-col items-center rounded-3xl bg-white/95 px-8 py-7 text-center shadow-2xl ring-1 ring-amber-200"
+        style={{ animation: 'plant-bounce 0.9s ease-out 1' }}
+      >
+        <div className="flex items-center gap-1 text-3xl">
+          <span style={{ animation: 'sparkle-burst 1.2s ease-out forwards' }}>
+            ✨
+          </span>
+          <span className="text-4xl">🌸</span>
+          <span
+            style={{
+              animation: 'sparkle-burst 1.2s ease-out 0.2s forwards',
+              opacity: 0,
+            }}
+          >
+            ✨
+          </span>
+        </div>
+        <p className="mt-3 text-base font-bold text-stone-800">
+          완독 기록되었어요
+        </p>
+        <p className="mt-1 text-xs text-stone-500">도감에 추가됐어요</p>
+      </div>
+    </div>
+  )
 }

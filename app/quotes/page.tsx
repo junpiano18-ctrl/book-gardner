@@ -102,11 +102,6 @@ export default function QuotesPage() {
           </p>
         </header>
 
-        {/* AI 문장 숲 입구 — 카드 목록 위 가로 배너 */}
-        {allLoaded && allQuotes.length > 0 && (
-          <ForestBanner quoteCount={allQuotes.length} />
-        )}
-
         {/* 검색창 */}
         <div className="relative mb-5">
           <span
@@ -171,6 +166,14 @@ export default function QuotesPage() {
             {error.message}
           </div>
         )}
+
+        {/* AI 문장 숲 입구 — 필터/모드 바 아래, 카드 그리드 위.
+            검색 중에는 결과 집중을 위해 숨김. */}
+        {allLoaded &&
+          allQuotes.length > 0 &&
+          !isSearchingMode && (
+            <ForestBanner quoteCount={allQuotes.length} />
+          )}
 
         {/* 본문 */}
         {!allLoaded ? (

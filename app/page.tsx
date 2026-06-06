@@ -283,7 +283,7 @@ export default function HomePage() {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => router.push(`/shelf?bookId=${p.book_id}`)}
+                  onClick={() => router.push(`/books/${p.book_id}`)}
                   className="flex min-h-[88px] flex-col items-center rounded-xl bg-white/70 p-2 ring-1 ring-amber-900/5 transition hover:-translate-y-0.5 hover:shadow-sm"
                 >
                   {hasPlantIllustration(p.kdc_code) ? (
@@ -316,7 +316,7 @@ export default function HomePage() {
             <ShelfView
               plants={preview}
               booksPerShelf={PREVIEW_LIMIT}
-              onSelect={(plant) => router.push(`/shelf?bookId=${plant.book_id}`)}
+              onSelect={(plant) => router.push(`/books/${plant.book_id}`)}
             />
           </PreviewSection>
         </div>
