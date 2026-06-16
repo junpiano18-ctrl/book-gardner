@@ -28,7 +28,7 @@ export function Header({ activeKey, actions }: HeaderProps) {
           <div className="flex min-w-0 items-center gap-4 sm:gap-8">
             <Link href="/" className="flex shrink-0 items-center gap-2 text-lg font-bold text-stone-800">
               <span className="text-2xl">🌱</span>
-              <span className="hidden min-[380px]:inline">북 가드너</span>
+              <span className="hidden min-[380px]:inline">문장정원</span>
             </Link>
             <nav className="hidden items-center gap-1 text-sm text-stone-600 sm:flex">
               {NAV_ITEMS.map((item) => {

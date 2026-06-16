@@ -72,7 +72,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2 text-xl font-bold text-stone-800">
           <span className="text-3xl">🌱</span>
-          <span>북 가드너</span>
+          <span>문장정원</span>
         </Link>
 
         <div className="rounded-3xl bg-white/80 p-7 shadow-md ring-1 ring-amber-900/5 backdrop-blur">
