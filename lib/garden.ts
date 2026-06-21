@@ -175,3 +175,8 @@ export async function updatePlant(
   if (error) throw error
   return data as Plant
 }
+
+export async function deletePlantByBookId(bookId: string): Promise<void> {
+  const { error } = await supabase.from('plants').delete().eq('book_id', bookId)
+  if (error) throw error
+}

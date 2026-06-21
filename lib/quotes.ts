@@ -78,3 +78,8 @@ export async function toggleQuoteFavorite(id: string, isFavorite: boolean): Prom
   if (error) throw error
   return data as Quote
 }
+
+export async function deleteQuotesByBookId(bookId: string): Promise<void> {
+  const { error } = await supabase.from('quotes').delete().eq('book_id', bookId)
+  if (error) throw error
+}

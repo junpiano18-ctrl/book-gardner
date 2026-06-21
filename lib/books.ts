@@ -183,3 +183,8 @@ export async function updateBookStatus(
   if (error) throw error
   return data as Book
 }
+
+export async function deleteBook(id: string): Promise<void> {
+  const { error } = await supabase.from('books').delete().eq('id', id)
+  if (error) throw error
+}

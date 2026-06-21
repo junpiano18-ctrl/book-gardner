@@ -8,13 +8,14 @@ import { Header } from '@/components/ui/Header'
 import { PlantIllustration, hasPlantIllustration } from '@/components/Plant/PlantIllustration'
 import { WaterModal } from '@/components/ui/WaterModal'
 import { useAuth } from '@/hooks/useAuth'
-import { getBookById } from '@/lib/books'
+import { getBookById, deleteBook } from '@/lib/books'
 import {
   getPlantByBookId,
   markBookCompleted,
   waterPlant as waterPlantLib,
+  deletePlantByBookId,
 } from '@/lib/garden'
-import { addQuote, getQuotesByBook, toggleQuoteFavorite } from '@/lib/quotes'
+import { addQuote, getQuotesByBook, toggleQuoteFavorite, deleteQuotesByBookId } from '@/lib/quotes'
 import { getPlantByKdc, getPlantInfo, KDC_PLANT_MAP } from '@/lib/plants'
 import type { Book, Plant, PlantInfo, PlantStage, PlantWithBook, Quote } from '@/types'
 
@@ -56,6 +57,10 @@ export default function BookDetailPage({
   const [confirmingComplete, setConfirmingComplete] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [justCompleted, setJustCompleted] = useState(false)
+
+  // 정원에서 빼기
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -154,6 +159,21 @@ export default function BookDetailPage({
       setError(e as Error)
     } finally {
       setCompleting(false)
+    }
+  }
+
+  async function handleDeleteBook() {
+    if (!book || deleting) return
+    setDeleting(true)
+    try {
+      await deleteQuotesByBookId(book.id)
+      await deletePlantByBookId(book.id)
+      await deleteBook(book.id)
+      router.push('/garden')
+    } catch (e) {
+      setError(e as Error)
+      setDeleting(false)
+      setConfirmingDelete(false)
     }
   }
 
@@ -266,6 +286,16 @@ export default function BookDetailPage({
                 </ul>
               )}
             </section>
+
+            <div className="mt-12 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                className="text-xs text-stone-400 underline-offset-2 transition hover:text-red-400 hover:underline"
+              >
+                정원에서 빼기
+              </button>
+            </div>
           </>
         )}
       </main>
@@ -288,6 +318,15 @@ export default function BookDetailPage({
       )}
 
       {justCompleted && <CelebrationOverlay />}
+
+      {confirmingDelete && book && (
+        <ConfirmDeleteModal
+          bookTitle={book.title}
+          submitting={deleting}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={handleDeleteBook}
+        />
+      )}
     </div>
   )
 }
@@ -718,6 +757,69 @@ function CelebrationOverlay() {
           완독 기록되었어요
         </p>
         <p className="mt-1 text-xs text-stone-500">도감에 추가됐어요</p>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// 정원에서 빼기 — 확인 모달
+// ============================================================
+function ConfirmDeleteModal({
+  bookTitle,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  bookTitle: string
+  submitting: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="정원에서 빼기 확인"
+      className="fixed inset-0 z-40 flex items-center justify-center px-4"
+    >
+      <button
+        type="button"
+        aria-label="닫기"
+        onClick={submitting ? undefined : onCancel}
+        className="absolute inset-0 bg-stone-900/55 backdrop-blur-sm"
+      />
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-stone-200">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">🗑️</div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-stone-800">정원에서 빼기</h3>
+            <p className="mt-1 line-clamp-2 text-sm text-stone-600">
+              <span className="font-medium">{bookTitle}</span>
+            </p>
+            <p className="mt-2 text-xs text-stone-500">
+              이 책을 정원에서 빼면 기록한 문장도 함께 삭제돼요. 계속할까요?
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="rounded-full px-4 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={submitting}
+            className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-wait disabled:opacity-70"
+          >
+            {submitting ? '삭제 중...' : '빼기'}
+          </button>
+        </div>
       </div>
     </div>
   )
