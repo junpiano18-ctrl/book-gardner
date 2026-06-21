@@ -6,8 +6,34 @@ import {
   createBook,
   updateBookStatus,
   searchBooks as searchBooksApi,
+  isValidCoverUrl,
 } from '@/lib/books'
 import type { Book, BookStatus, KakaoBook } from '@/types'
+
+async function enrichCovers(books: Book[]): Promise<Book[]> {
+  const missing = books.filter((b) => !isValidCoverUrl(b.cover_url) && b.isbn)
+  if (missing.length === 0) return books
+
+  const results = await Promise.all(
+    missing.map(async (b) => {
+      try {
+        const res = await fetch(`/api/cover?isbn=${encodeURIComponent(b.isbn!)}`)
+        if (!res.ok) return { id: b.id, thumbnail: '' }
+        const json = (await res.json()) as { thumbnail: string }
+        return { id: b.id, thumbnail: json.thumbnail ?? '' }
+      } catch {
+        return { id: b.id, thumbnail: '' }
+      }
+    })
+  )
+
+  const coverMap = new Map(results.filter((r) => r.thumbnail).map((r) => [r.id, r.thumbnail]))
+  if (coverMap.size === 0) return books
+
+  return books.map((b) =>
+    coverMap.has(b.id) ? { ...b, cover_url: coverMap.get(b.id) } : b
+  )
+}
 
 export function useBook(userId: string | undefined) {
   const [books, setBooks] = useState<Book[]>([])
@@ -26,7 +52,7 @@ export function useBook(userId: string | undefined) {
     setError(null)
     try {
       const data = await getBooks(userId)
-      setBooks(data)
+      setBooks(await enrichCovers(data))
     } catch (e) {
       setError(e as Error)
     } finally {
