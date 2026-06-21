@@ -291,8 +291,9 @@ export default function BookDetailPage({
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
-                className="text-xs text-stone-400 underline-offset-2 transition hover:text-red-400 hover:underline"
+                className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 px-4 py-1.5 text-xs font-medium text-stone-500 transition hover:border-stone-400 hover:text-stone-700"
               >
+                <span aria-hidden>✕</span>
                 정원에서 빼기
               </button>
             </div>
